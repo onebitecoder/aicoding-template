@@ -69,43 +69,22 @@ git config --list
 
 ---
 
-## 2. 환경별 실행 방법
+## 2. 스크립트 실행 방법
 
-### macOS / Linux
+모든 OS에서 동일한 Python 스크립트를 사용합니다:
 
 ```bash
 # 의존성 설치
-./install.sh
+python scripts/install.py
 
 # 개발 서버 실행
-./dev.sh
+python scripts/dev.py
 
 # 테스트 실행
-./test.sh
+python scripts/test.py
 ```
 
-### Windows (PowerShell)
-
-```powershell
-# 의존성 설치
-.\install.ps1
-
-# 개발 서버 실행
-.\dev.ps1
-
-# 테스트 실행
-.\test.ps1
-```
-
-### Windows (Git Bash / WSL)
-
-Git Bash나 WSL을 사용하면 macOS와 동일한 명령어 사용 가능:
-
-```bash
-./install.sh
-./dev.sh
-./test.sh
-```
+> **Windows 사용자**: `python3` 대신 `python`을 사용하세요.
 
 ---
 
@@ -137,10 +116,20 @@ Claude Code가 자동으로:
 "의존성 설치해줘"
 ```
 
+또는 직접 실행:
+```bash
+python scripts/install.py
+```
+
 ### Step 4: 개발 서버 실행
 
 ```
 "개발 서버 실행해줘"
+```
+
+또는 직접 실행:
+```bash
+python scripts/dev.py
 ```
 
 브라우저에서 확인:
@@ -216,61 +205,98 @@ Claude Code가 자동으로:
 
 ## 6. 자주 사용하는 명령어
 
-| 작업 | Claude Code에게 말하기 |
-|------|----------------------|
-| 프로젝트 생성 | "SPEC.md를 기반으로 프로젝트를 생성해줘" |
-| 의존성 설치 | "의존성 설치해줘" |
-| 개발 서버 실행 | "개발 서버 실행해줘" |
-| 테스트 실행 | "테스트 실행해줘" |
-| Railway 배포 | "Railway에 배포해줘" |
-| 배포 로그 확인 | "배포 로그 확인해줘" |
-| 에러 해결 | "에러 원인 분석해줘" |
+| 작업 | Claude Code에게 말하기 | 직접 실행 |
+|------|----------------------|----------|
+| 프로젝트 생성 | "SPEC.md를 기반으로 프로젝트를 생성해줘" | - |
+| 의존성 설치 | "의존성 설치해줘" | `python scripts/install.py` |
+| 개발 서버 실행 | "개발 서버 실행해줘" | `python scripts/dev.py` |
+| 테스트 실행 | "테스트 실행해줘" | `python scripts/test.py` |
+| 린트만 실행 | "린트 체크해줘" | `python scripts/test.py lint` |
+| Railway 배포 | "Railway에 배포해줘" | `railway up` |
+| 배포 로그 확인 | "배포 로그 확인해줘" | `railway logs` |
 
 ---
 
-## 7. 스크립트 명령어 정리
+## 7. 스크립트 옵션
 
-### macOS / Linux
+### dev.py 옵션
 
-| 스크립트 | 설명 | 옵션 |
-|---------|------|------|
-| `./install.sh` | 의존성 설치 | - |
-| `./dev.sh` | 개발 서버 실행 | `backend`, `frontend`, `all` |
-| `./test.sh` | 테스트 실행 | `lint`, `unit`, `frontend`, `all`, `--coverage` |
-| `./easystart.sh` | 대화형 가이드 | - |
+```bash
+# 전체 실행 (기본값)
+python scripts/dev.py
 
-### Windows (PowerShell)
+# Backend만 실행
+python scripts/dev.py backend
 
-| 스크립트 | 설명 | 옵션 |
-|---------|------|------|
-| `.\install.ps1` | 의존성 설치 | - |
-| `.\dev.ps1` | 개발 서버 실행 | `backend`, `frontend`, `all` |
-| `.\test.ps1` | 테스트 실행 | `lint`, `unit`, `frontend`, `all`, `--coverage` |
+# Frontend만 실행
+python scripts/dev.py frontend
+```
+
+### test.py 옵션
+
+```bash
+# 전체 테스트 (기본값)
+python scripts/test.py
+
+# 린트만 실행
+python scripts/test.py lint
+
+# Backend 테스트만 실행
+python scripts/test.py backend
+
+# Frontend 테스트만 실행
+python scripts/test.py frontend
+
+# 커버리지 리포트 포함
+python scripts/test.py --coverage
+```
 
 ---
 
 ## 8. 문제 해결
 
-### "command not found" 에러
+### "command not found: python" 에러
 
-Node.js나 Python이 설치되지 않았습니다:
-```bash
-# 설치 확인
-node --version
-python3 --version  # 또는 python --version (Windows)
-```
-
-### "실행 권한 없음" 에러 (macOS/Linux)
+Python이 설치되지 않았거나 PATH에 없습니다:
 
 ```bash
-chmod +x install.sh dev.sh test.sh easystart.sh
+# macOS/Linux
+python3 --version
+
+# Windows
+python --version
 ```
 
-### "스크립트 실행 정책" 에러 (Windows PowerShell)
+설치 방법은 1.1 섹션을 참고하세요.
 
-```powershell
-# 관리자 권한으로 PowerShell 실행 후:
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+### "No module named venv" 에러
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install python3-venv
+
+# macOS (Homebrew Python 사용 권장)
+brew install python@3.11
+```
+
+### 개발 서버가 실행되지 않음
+
+```
+"에러 로그 확인해줘"
+```
+
+### 포트가 이미 사용 중
+
+스크립트가 자동으로 포트를 해제하지만, 수동으로 하려면:
+
+```bash
+# macOS/Linux
+lsof -ti :8000 | xargs kill -9
+lsof -ti :3000 | xargs kill -9
+
+# Windows (PowerShell)
+Get-NetTCPConnection -LocalPort 8000 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+Get-NetTCPConnection -LocalPort 3000 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
 
 ### Railway 배포 실패
@@ -282,24 +308,6 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 로그를 보고 Claude Code에게:
 ```
 "이 에러 해결해줘: [에러 메시지]"
-```
-
-### 개발 서버가 실행되지 않음
-
-```
-"에러 로그 확인해줘"
-```
-
-### 포트가 이미 사용 중
-
-```bash
-# macOS/Linux
-lsof -ti :8000 | xargs kill -9
-lsof -ti :3000 | xargs kill -9
-
-# Windows PowerShell
-Get-NetTCPConnection -LocalPort 8000 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
-Get-NetTCPConnection -LocalPort 3000 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
 
 ---

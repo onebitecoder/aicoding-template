@@ -527,18 +527,20 @@ function UserListPage() {
 
 ## 의존성 관리 및 환경 구축 (CRITICAL)
 
-**개발 시작 전 반드시 `install.sh`를 실행하여 환경을 구축해야 한다.**
+**개발 시작 전 반드시 `install.py`를 실행하여 환경을 구축해야 한다.**
 
 ### 개발 환경 구축 순서
 
-1. **install.sh 실행** (최초 1회 또는 의존성 변경 시)
+1. **install.py 실행** (최초 1회 또는 의존성 변경 시)
    ```bash
-   ./install.sh
+   python scripts/install.py
    ```
-2. **dev.sh 실행** (개발 서버 시작)
+2. **dev.py 실행** (개발 서버 시작)
    ```bash
-   ./dev.sh
+   python scripts/dev.py
    ```
+
+> **참고**: 모든 스크립트는 Python 기반으로, macOS/Linux/Windows에서 동일하게 동작합니다.
 
 ### 새 패키지 설치 워크플로우 (CRITICAL)
 
@@ -600,45 +602,40 @@ df = pandas.DataFrame()
 | Backend (Python) | `pip install 패키지명` | `backend/requirements.txt` |
 | Frontend (Node.js) | `npm install 패키지명` | `frontend/package.json` |
 
-### install.sh 유지 규칙
+### install.py 유지 규칙
 
-install.sh는 다음을 수행해야 한다:
+install.py는 다음을 수행해야 한다:
 - Python 가상환경 생성 및 활성화
 - `backend/requirements.txt` 패키지 설치
 - `frontend/package.json` 패키지 설치
 - 환경 변수 파일 생성 (`.env` 없을 경우)
 
-**install.sh 예시 구조**:
+**스크립트 위치**: `scripts/install.py`, `scripts/dev.py`, `scripts/test.py`
+
+**스크립트 실행 방법**:
 ```bash
-#!/bin/bash
+# 의존성 설치
+python scripts/install.py
 
-# Backend 설정
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# 개발 서버 실행
+python scripts/dev.py          # 전체
+python scripts/dev.py backend  # Backend만
+python scripts/dev.py frontend # Frontend만
 
-# Frontend 설정
-cd ../frontend
-npm install
-
-# 환경 변수 파일 생성
-cd ..
-if [ ! -f .env ]; then
-    cp .env.example .env
-    echo ".env 파일이 생성되었습니다. 필요한 값을 설정하세요."
-fi
-
-echo "설치 완료!"
+# 테스트 실행
+python scripts/test.py           # 전체
+python scripts/test.py lint      # 린트만
+python scripts/test.py backend   # Backend만
+python scripts/test.py --coverage # 커버리지 포함
 ```
 
 ### 체크리스트
 
 ```
-[ ] 개발 시작 전 install.sh를 실행했는가?
+[ ] 개발 시작 전 python scripts/install.py를 실행했는가?
 [ ] 새 패키지 설치 시 requirements.txt 또는 package.json에 추가했는가?
-[ ] install.sh 실행 시 모든 의존성이 설치되는가?
-[ ] 다른 개발자도 install.sh만 실행하면 환경 구축이 되는가?
+[ ] install.py 실행 시 모든 의존성이 설치되는가?
+[ ] 다른 개발자도 install.py만 실행하면 환경 구축이 되는가?
 ```
 
 ### Dockerfile과 패키지 관리
