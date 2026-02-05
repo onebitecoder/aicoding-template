@@ -85,7 +85,12 @@ start_backend() {
         exit 1
     fi
 
-    source venv/bin/activate
+    # OS별 가상환경 활성화
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        source venv/Scripts/activate
+    else
+        source venv/bin/activate
+    fi
 
     # .env 파일 로드
     if [ -f ".env" ]; then

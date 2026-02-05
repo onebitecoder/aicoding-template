@@ -220,8 +220,12 @@ else
     warning "가상환경이 이미 존재합니다. 건너뜁니다."
 fi
 
-# 가상환경 활성화
-source venv/bin/activate
+# 가상환경 활성화 (OS별 분기)
+if [[ "$OS" == "windows" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    source venv/Scripts/activate
+else
+    source venv/bin/activate
+fi
 success "가상환경 활성화 완료"
 
 echo ""
