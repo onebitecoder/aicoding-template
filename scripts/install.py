@@ -268,10 +268,20 @@ def get_shell_profile():
 
     return profile
 
+def is_interactive():
+    """대화형 입력이 가능한 환경인지 확인"""
+    import sys
+    return sys.stdin.isatty()
+
 def ask_env_variable(var_name, description, hint):
     """사용자에게 환경변수 값을 대화형으로 입력받기.
+    non-interactive 환경에서는 자동으로 skip한다.
     반환: 입력된 값 또는 None(skip)
     """
+    if not is_interactive():
+        warning(f"{var_name} 설정을 건너뜁니다 (non-interactive 모드).")
+        return None
+
     print()
     print(f"  {Colors.BOLD}{description}{Colors.RESET}")
     print(f"  {hint}")

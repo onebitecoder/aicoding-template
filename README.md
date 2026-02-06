@@ -190,15 +190,14 @@ aicoding-template/
 │   └── reference/         # 디자인 레퍼런스 이미지
 │       └── sample.png
 │
-├── samples/               # 기능 테스트용 샘플 코드
+├── scripts/
+│   ├── install.py         # 의존성 설치 스크립트
+│   ├── dev.py             # 개발 서버 실행 스크립트
+│   └── test.py            # 테스트 실행 스크립트
 │
 ├── SPEC.md                # 프로젝트 명세서 (수정하여 사용)
 ├── QUICKSTART.md          # 빠른 시작 가이드
 ├── AGENTS.md              # AI Agent 개발 규칙
-│
-├── install.sh             # 의존성 설치 스크립트
-├── dev.sh                 # 개발 서버 실행 스크립트
-├── test.sh                # 테스트 실행 스크립트
 │
 ├── Dockerfile             # Docker 빌드 설정
 ├── railway.toml           # Railway 배포 설정

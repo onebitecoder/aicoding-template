@@ -831,13 +831,14 @@ stock-portfolio-tracker/
 │   └── requirements.txt
 │
 ├── .claude/                 # Claude 설정
+├── scripts/
+│   ├── install.py           # 의존성 설치 스크립트
+│   ├── dev.py               # 개발 서버 실행 스크립트
+│   └── test.py              # 테스트 실행 스크립트
 ├── SPEC.md                  # 이 문서
 ├── README.md
 ├── Dockerfile
-├── railway.toml
-├── install.sh
-├── dev.sh
-└── test.sh
+└── railway.toml
 ```
 
 ---

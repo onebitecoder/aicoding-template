@@ -1,10 +1,18 @@
 # Agent Rules
 
+## 우선순위 가이드
+
+| 표시 | 의미 | 설명 |
+|------|------|------|
+| **MANDATORY** | 절대 규칙 | 반드시 준수. 위반 시 프로젝트 손상 가능 |
+| **IMPORTANT** | 중요 규칙 | 가능한 한 준수. 합리적 이유가 있으면 예외 가능 |
+| (표시 없음) | 권장 규칙 | 따르면 좋지만 상황에 따라 유연하게 적용 |
+
 ## Language
 - 모든 답변은 한국어로 작성한다.
 - 코드/로그/에러 메시지는 원문을 유지하되, 설명은 한국어로 한다.
 
-## Docs / 최신 문서 규칙 (CRITICAL)
+## Docs / 최신 문서 규칙 (IMPORTANT)
 
 **라이브러리/프레임워크/SDK 사용법이 관련된 작업 시 반드시 최신 문서를 확인해야 한다.**
 
@@ -24,88 +32,34 @@
 - 오래된 지식 기반으로 deprecated API를 안내하지 않도록 주의
 - 버전에 따라 동작이 달라지는 경우 반드시 버전 명시
 
-## 개발 환경 사전 점검 및 자동 설치 (CRITICAL)
+## 개발 환경 사전 점검 및 자동 설치 (MANDATORY)
 
 **"프로젝트 구현해줘" 등의 요청을 받으면, 코드 작성 전에 시스템 필수 도구와 MCP 서버 환경을 확인하고 설치해야 한다.**
 
 ### 프로젝트 구현 요청 시 전체 실행 순서
 
 ```
-[Step 0] 시스템 필수 도구 확인 및 설치   ← 가장 먼저!
-[Step 0.5] MCP 서버 환경 확인 및 설치
-[Step 1] .git 삭제 (Git 초기화)
-[Step 2] SPEC.md 검토 및 스펙 구체화
-[Step 3] 필수 설정값 인터뷰
-[Step 4] Plan Mode로 구현 계획 수립
-[Step 5] 프로젝트 파일 생성/수정
-[Step 6] 의존성 설치 (install.py)
-[Step 7] git init + 초기 커밋
+[Step 1] install.py 실행 (시스템 도구 + MCP 도구 + 의존성 일괄 설치)
+[Step 2] .git 삭제 (Git 초기화)
+[Step 3] SPEC.md 검토 및 스펙 구체화
+[Step 4] 필수 설정값 인터뷰 (프로젝트/배포 관련)
+[Step 5] Plan Mode로 구현 계획 수립
+[Step 6] 프로젝트 파일 생성/수정 + VERSION 파일 생성 (0.1.0)
+[Step 7] install.py 재실행 (새로 생성된 의존성 설치)
+[Step 8] git init + 초기 커밋 + git tag v0.1.0
 ```
 
-### Step 0: 시스템 필수 도구 확인 및 설치
-
-OS를 감지하고 아래 도구를 확인, 미설치 시 자동 설치한다:
-
-```bash
-which git && git --version
-which python3 && python3 --version
-which node && node -v
-which npm && npm -v
-```
-
-| 도구 | macOS (brew) | Linux (apt) | Windows |
-|------|-------------|-------------|---------|
-| Git | `brew install git` | `sudo apt-get install -y git` | `winget install Git.Git` |
-| Python 3 | `brew install python@3.11` | `sudo apt-get install -y python3 python3-pip python3-venv` | `winget install Python.Python.3.11` |
-| Node.js | `brew install node` | nodesource 스크립트 + `apt-get install nodejs` | `winget install OpenJS.NodeJS.LTS` |
-
-- macOS에서 Homebrew가 없으면 먼저 설치
-- `.python-version`(3.11)과 `.nvmrc`(20) 파일의 버전 기준으로 설치
-- 설치 후 버전 재확인 필수
-- 자동 설치 실패 시 수동 설치 URL 안내 후 사용자 확인 대기
-
-**상태 테이블 출력:**
-```
-| 도구 | 필요 버전 | 설치 상태 | 버전 |
-|------|----------|----------|------|
-| Git | any | OK/설치함 | 2.x.x |
-| Python | >= 3.11 | OK/설치함 | 3.11.x |
-| Node.js | >= 20 | OK/설치함 | v20.x.x |
-| npm | any | OK | 10.x.x |
-```
-
-### Step 0.5: MCP 서버 환경 확인 및 설치
-
-```bash
-which npx              # Node.js 설치 시 포함
-which uvx              # 없으면: pip install uv
-which markitdown-mcp   # 없으면: pip install markitdown-mcp
-```
-
-- `CONTEXT7_API_KEY`, `GITHUB_PERSONAL_ACCESS_TOKEN` 환경 변수 확인
-- 미설정 시 사용자에게 인터뷰 (skip 가능)
-
-**MCP 상태 테이블 출력:**
-```
-| MCP 서버 | CLI 도구 | 설치 상태 | 환경 변수 | 사용 가능 |
-|----------|----------|----------|----------|----------|
-| context7 | npx | OK | CONTEXT7_API_KEY | O/X |
-| sequential-thinking | npx | OK | - | O |
-| playwright | npx | OK | - | O |
-| github | npx | OK | GITHUB_PAT | O/X |
-| serena | uvx | OK/설치함 | - | O |
-| markitdown | markitdown-mcp | OK/설치함 | - | O |
-```
+> **핵심**: `python scripts/install.py` 하나로 시스템 도구(git/node/python), MCP CLI 도구(uvx/markitdown-mcp), 가상환경, Backend/Frontend 의존성이 모두 설치된다. MCP 환경변수(CONTEXT7_API_KEY, GITHUB_PAT)는 **선택사항**으로, 미설정 시 자동으로 skip된다.
 
 ### 주의사항
-- 시스템 도구 + MCP 설치는 **프로젝트 구현 요청 시에만** 실행 (기능 추가/수정 시 불필요)
-- `sudo` 필요 시 사용자에게 사전 안내 후 실행
-- 이미 설치되어 있으면 재설치하지 않고 다음 단계로 진행
-- 설치 실패 시 수동 설치 방법 안내 후 사용자 확인 대기
+- install.py는 **프로젝트 구현 요청 시** 가장 먼저 실행 (기능 추가/수정 시 불필요)
+- 이미 설치되어 있으면 재설치하지 않고 건너뜀
+- `.python-version`(3.11)과 `.nvmrc`(20) 파일의 버전을 기준으로 설치
+- 설치 실패 시 수동 설치 방법 안내
 
 ---
 
-## Git 초기화 규칙 (CRITICAL)
+## Git 초기화 규칙 (MANDATORY)
 
 **프로젝트 최초 구현 시에만 .git 디렉토리를 초기화하고, 이후에는 절대 삭제하지 않는다.**
 
@@ -140,7 +94,7 @@ git commit -m "feat: 프로젝트 초기 구현"
 - 사용자가 명시적으로 "git 초기화해줘"라고 요청해도 **기존 커밋 히스토리가 삭제됨을 경고**하고 재확인받을 것
 - 실수로 .git을 삭제하면 모든 커밋 히스토리가 영구 손실됨
 
-## 필수 설정값 인터뷰 (CRITICAL)
+## 필수 설정값 인터뷰
 
 **프로젝트 시작 또는 주요 작업 전, 필수 설정값이 누락되어 있으면 반드시 사용자에게 인터뷰 형식으로 입력받아야 한다.**
 
@@ -307,7 +261,7 @@ Q2. 데이터베이스 종류를 선택해주세요.
 
 ---
 
-## SPEC.md 검토 및 스펙 구체화 (CRITICAL)
+## SPEC.md 검토 및 스펙 구체화 (IMPORTANT)
 
 **프로젝트 작업 전 SPEC.md를 반드시 검토하고, 불명확한 부분은 사용자에게 질문하여 스펙을 구체화해야 한다.**
 
@@ -361,7 +315,7 @@ Q2. 데이터베이스 종류를 선택해주세요.
 
 **주의**: 불명확한 상태로 구현을 시작하면 나중에 대규모 수정이 필요할 수 있다. 먼저 질문하고 확인받는 것이 효율적이다.
 
-## Plan Mode 필수 (CRITICAL)
+## Plan Mode 필수 (IMPORTANT)
 
 **모든 구현 작업은 반드시 Plan Mode로 시작해야 한다.**
 
@@ -394,7 +348,7 @@ Q2. 데이터베이스 종류를 선택해주세요.
 - [ ] 사용자 승인을 받았는가?
 - [ ] 승인 후 구현을 시작했는가?
 
-## Frontend 개발 규칙 (CRITICAL)
+## Frontend 개발 규칙
 
 ### 새 페이지는 새 URL로 생성
 
@@ -467,7 +421,7 @@ function UserListPage() {
 
 ---
 
-## 디자인 일관성 유지 (CRITICAL)
+## 디자인 일관성 유지
 
 **새로운 페이지 추가 시 기존 페이지와 디자인 일관성을 유지해야 한다.**
 
@@ -527,12 +481,12 @@ function UserListPage() {
    - 문서/설명에서 🎉 같은 이모지 금지
    - UI 구현에서는 아이콘 컴포넌트(예: lucide-react) 사용을 우선한다.
 
-2) **중첩된 카드뷰는 사용하지 말 것 (CRITICAL)**
+2) **중첩된 카드뷰는 사용하지 말 것**
    - Card 안에 또 Card를 넣는 구조 금지
    - 필요하면 섹션 구분은 Divider, Header, Subsection, Background, Border 등으로 처리한다.
    - 레이아웃 깊이는 최대 2단계까지만 허용
 
-3) **심플한 디자인 유지 (CRITICAL)**
+3) **심플한 디자인 유지**
    - 웹 UI에서 너무 많은 텍스트 설명을 표시하지 말 것
    - 긴 설명문, 상세 가이드, 도움말 텍스트는 최소화
    - 필요한 정보만 간결하게 표시
@@ -560,7 +514,7 @@ function UserListPage() {
    </div>
    ```
 
-4) **모바일 친화적인 레이아웃으로 적용할 것 (CRITICAL)**
+4) **모바일 친화적인 레이아웃으로 적용할 것**
    - 기본을 모바일 우선(Mobile-first)로 설계한다.
    - 작은 화면에서 가독성(폰트/여백/줄바꿈)과 터치 타깃(버튼/링크)을 우선한다.
    - **모바일 좌우 padding은 최소한으로 설정** (예: `px-2`, `px-4`)
@@ -579,7 +533,7 @@ function UserListPage() {
    </div>
    ```
 
-   **사용자 요청 확인 (CRITICAL)**:
+   **사용자 요청 확인**:
    - 사용자의 UI 요청이 **웹에만 한정되어 너무 디테일**하면 반드시 되물을 것
    - 예시 질문: **"이렇게 업데이트하면 모바일에서 레이아웃이 깨질 수 있는데 괜찮나요?"**
    - 모바일 호환성을 사용자에게 확인받고 진행
@@ -612,7 +566,7 @@ function UserListPage() {
 7) 사용자 작업에는 성공/실패 메시지를 항상 노출할 것
    - 저장/추가/삭제/새로고침 등 주요 액션의 결과를 명확히 표시한다.
 
-8) **디자인 레퍼런스 확인 (CRITICAL)**
+8) **디자인 레퍼런스 확인**
    - UI 작업 전 `design/reference/` 폴더에 레퍼런스 이미지가 있는지 확인
    - 이미지가 있으면 해당 스타일을 분석하여 적용
    - 이미지가 없으면 사용자에게 디자인 방향을 질문:
@@ -626,7 +580,7 @@ function UserListPage() {
      ```
    - 레퍼런스 이미지 확인 후 UI 컴포넌트 개발 시작
 
-## 의존성 관리 및 환경 구축 (CRITICAL)
+## 의존성 관리 및 환경 구축 (IMPORTANT)
 
 **개발 시작 전 반드시 `install.py`를 실행하여 환경을 구축해야 한다.**
 
@@ -643,7 +597,7 @@ function UserListPage() {
 
 > **참고**: 모든 스크립트는 Python 기반으로, macOS/Linux/Windows에서 동일하게 동작합니다.
 
-### 새 패키지 설치 워크플로우 (CRITICAL)
+### 새 패키지 설치 워크플로우
 
 **새 패키지가 필요한 기능 구현 시 반드시 아래 순서를 따라야 한다.**
 
@@ -763,13 +717,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 ```
 
-**주의**: 시스템 패키지 추가 시 반드시 사용자에게 확인:
-```
-"이 기능을 위해 시스템 패키지 [패키지명]이 필요합니다.
-Dockerfile에 추가해도 될까요?"
-```
+> 시스템 레벨 패키지(libpq-dev, ffmpeg 등)가 필요하면 Dockerfile에 직접 추가한다.
 
-### 개발/운영 의존성 파일 통일 (CRITICAL)
+### 개발/운영 의존성 파일 통일
 
 **`requirements.txt`, `package.json` 등 의존성 파일은 개발 환경과 운영 환경을 분리하지 않고 하나로 통일한다.**
 
@@ -815,7 +765,7 @@ frontend/
 
 ---
 
-## Workflow (필수)
+## Workflow (MANDATORY)
 - 변경 사항이 생기면 아래 순서로 마무리한다.
   1) **Lint 체크 (테스트 전 필수)**
      - Frontend (React): `npm run lint` (ESLint)
@@ -824,14 +774,14 @@ frontend/
   2) 테스트 실행(프로젝트 표준 커맨드 사용)
   3) **테스트 결과를 테이블 형태로 출력 (필수)**
   4) PASS/FAIL 확인 후, FAIL이면 수정 → 재테스트 반복
-  5) **PASS면 반드시 `git add` → `git commit` 수행 (절대 누락 금지)**
+  5) **PASS면 사용자에게 커밋 여부를 확인하고, 승인 시 `git add` → `git commit` 수행**
   6) `git push`는 사용자가 명시적으로 요청할 때만 수행한다.
 
-### Commit 필수 (CRITICAL)
-**테스트 통과 후 commit을 절대 잊지 말 것!**
-- 작업 완료 + 테스트 PASS → 반드시 commit
-- commit 없이 다음 작업으로 넘어가지 말 것
-- 사용자가 commit 하지 말라고 명시적으로 요청한 경우에만 생략
+### Commit 규칙
+**테스트 통과 후 커밋을 잊지 말 것!**
+- 작업 완료 + 테스트 PASS → 사용자에게 커밋 의사를 확인
+- 사용자가 승인하면 즉시 commit
+- 사용자가 "자동으로 커밋해" 또는 "알아서 커밋해줘"라고 요청한 경우에는 확인 없이 자동 커밋 가능
 
 ### 테스트 결과 출력 형식 (필수)
 테스트 수행 후 반드시 아래 형식으로 결과를 출력한다:
@@ -869,7 +819,7 @@ ruff check . --fix
 ruff format .
 ```
 
-## 새 기능 추가 시 테스트 필수 (CRITICAL)
+## 새 기능 추가 시 테스트 필수 (IMPORTANT)
 
 **새로운 기능을 추가할 때는 반드시 해당 기능에 대한 테스트 코드를 함께 작성해야 한다.**
 
@@ -918,7 +868,7 @@ ruff format .
 
 ---
 
-## 테스트 구조 및 실행 (CRITICAL)
+## 테스트 구조 및 실행
 
 **모든 테스트 코드는 `tests/` 디렉토리 아래에 모아서 관리한다.**
 
@@ -1183,7 +1133,7 @@ describe('Button', () => {
 
 ---
 
-## Database 개발 규칙 (CRITICAL)
+## Database 개발 규칙 (IMPORTANT)
 
 **Backend에서 데이터베이스 접근 시 반드시 ORM(SQLAlchemy)을 사용해야 한다.**
 
@@ -1295,7 +1245,7 @@ active_authors = db.query(User).filter(User.id.in_(subquery)).all()
 
 ---
 
-## Database 마이그레이션 (CRITICAL)
+## Database 마이그레이션 (IMPORTANT)
 
 **DB 스키마 변경 시 반드시 마이그레이션을 수행해야 한다.**
 
@@ -1354,7 +1304,7 @@ alembic init alembic
 
 ---
 
-## Database & API Synchronization (CRITICAL)
+## Database & API Synchronization (IMPORTANT)
 **스키마와 API는 항상 함께 업데이트되어야 한다.**
 
 처음에 만든 스키마와 API가 다른 상태에서 스키마가 업데이트되면 API는 업데이트되지 않기 때문에, 반드시 CRUD 기능에서는 스키마 업데이트와 API 업데이트를 같이 취급해야 한다.
@@ -1417,7 +1367,7 @@ class AddressResponse(BaseModel):
 
 ---
 
-## Backend Development - 12-Factor App (CRITICAL)
+## Backend Development - 12-Factor App
 
 **Backend 개발 시 반드시 12-Factor App 방법론을 따라야 한다.**
 
@@ -1477,7 +1427,7 @@ PORT = int(os.getenv("PORT", 8000))
 
 ---
 
-## Backend Refactoring - Unix Philosophy (CRITICAL)
+## Backend Refactoring - Unix Philosophy
 
 **백엔드 리팩토링 시 반드시 Unix Philosophy를 따라야 한다.**
 
@@ -1613,7 +1563,7 @@ Unix Philosophy의 "작고, 집중된 컴포넌트" 원칙은 현대의 **마이
 
 ---
 
-## Backend Configuration (CRITICAL)
+## Backend Configuration (IMPORTANT)
 
 백엔드 개발 시 반드시 적용해야 할 설정들입니다.
 
@@ -1642,7 +1592,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],        # 모든 origin 허용 (개발 환경)
-    allow_credentials=True,     # 쿠키 포함 요청 허용
+    allow_credentials=False,    # allow_origins=["*"] 시 반드시 False (CORS 스펙)
     allow_methods=["*"],        # 모든 HTTP 메서드 허용 (GET, POST, PUT, DELETE 등)
     allow_headers=["*"],        # 모든 헤더 허용
 )
@@ -1650,36 +1600,32 @@ app.add_middleware(
 
 ### 환경별 설정 예시
 
-더 나은 방법은 환경 변수를 사용하여 개발/프로덕션 환경을 구분하는 것입니다:
-
 ```python
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# 환경 설정
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-
 app = FastAPI()
 
-# 환경에 따른 CORS 설정
 if ENVIRONMENT == "development":
-    # 개발 환경: 모든 origin 허용
-    origins = ["*"]
+    # 개발: 모든 origin 허용, credentials=False
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 else:
-    # 프로덕션: 특정 origin만 허용
-    origins = [
-        "https://yourdomain.com",
-        "https://www.yourdomain.com",
-    ]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    # 프로덕션: 특정 origin만 허용, credentials=True 가능
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["https://yourdomain.com"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 ```
 
 ### 확인 방법
@@ -1696,11 +1642,11 @@ CORS가 올바르게 설정되었는지 확인:
 
 - **개발 환경**: 편의를 위해 모든 origin 허용 (`allow_origins=["*"]`)
 - **프로덕션 환경**: 보안을 위해 특정 origin만 허용 (도메인 명시)
-- **allow_credentials=True** 사용 시 `allow_origins=["*"]`는 보안상 권장되지 않으나, 개발 환경에서는 편의성을 우선
+- **주의**: `allow_origins=["*"]`와 `allow_credentials=True`는 CORS 스펙상 동시 사용 불가. 프로덕션에서는 특정 origin을 지정하고 `allow_credentials=True`로 변경
 
 ---
 
-### Trailing Slash 통일 (CRITICAL)
+### Trailing Slash 통일
 **Frontend와 Backend에서 URL trailing slash를 반드시 통일해야 한다.**
 
 `/api/users`와 `/api/users/`는 다른 URL로 처리될 수 있어 404 에러의 원인이 됨.
@@ -1762,13 +1708,72 @@ api.interceptors.request.use((config) => {
 
 ---
 
-## Debugging & Logging (중요)
+## 버전 관리 (Semantic Versioning) (IMPORTANT)
 
-### 로그 파일 위치
+**프로젝트 버전은 Semantic Versioning(SemVer)을 따르며, 릴리스/배포 시점에 버전을 업데이트한다.**
+
+### 버전 형식
+
+```
+MAJOR.MINOR.PATCH (예: 1.2.3)
+  PATCH: fix: 커밋 (버그 수정, 하위 호환)
+  MINOR: feat: 커밋 (새 기능, 하위 호환)
+  MAJOR: BREAKING CHANGE (호환성이 깨지는 변경)
+```
+
+### 버전 관리 파일
+
+- 프로젝트 루트의 `VERSION` 파일이 단일 버전 소스(Single Source of Truth)
+- 최초 프로젝트 생성 시 `0.1.0`으로 시작
+- `package.json`, `pyproject.toml` 등과 동기화 유지
+
+### 버전 업데이트 시점
+
+| 시점 | 버전 업데이트 | 설명 |
+|------|:---:|------|
+| 일반 커밋 | X | 커밋만 수행, 버전 변경 없음 |
+| 릴리스/배포 요청 | **O** | 누적된 커밋 분석 후 버전 결정 |
+| 사용자 명시적 요청 | **O** | "버전 올려줘", "릴리스해줘" 등 |
+
+### Conventional Commits → 버전 결정
+
+| 커밋 타입 | 버전 변경 |
+|----------|----------|
+| `fix:` | PATCH 증가 |
+| `feat:` | MINOR 증가 |
+| `BREAKING CHANGE` / `feat!:` / `fix!:` | MAJOR 증가 |
+| `chore:`, `docs:`, `style:`, `refactor:`, `test:` | 변경 없음 |
+
+### 릴리스 워크플로우
+
+```
+1. 마지막 버전 태그 이후 커밋 분석
+2. 변경 수준에 따라 새 버전 결정
+3. VERSION 파일 업데이트 + 관련 파일 동기화
+4. 커밋: "release: vX.Y.Z"
+5. Git 태그: git tag vX.Y.Z
+6. 사용자 확인 후 배포
+```
+
+### 주의사항
+
+- `0.x.x`에서 시작, 프로덕션 준비 완료 시 `1.0.0`
+- VERSION 파일은 반드시 Git에 포함 (`.gitignore` 제외 금지)
+- 릴리스 커밋은 `release: vX.Y.Z` 형식
+
+---
+
+## Debugging & Logging
+
+### 로그 출력 원칙
+- **개발 환경**: stdout + `debug.log` 파일 (디버깅용)
+- **프로덕션 환경**: stdout만 사용 (12-Factor App 준수, 로그 수집기가 처리)
+
+### 로그 파일 (개발 환경 전용)
 - **Backend**: `backend/debug.log`
 - **Frontend**: `frontend/debug.log`
 
-### 핫리로드 시 로그 초기화 (CRITICAL)
+### 핫리로드 시 로그 초기화
 **개발 서버 재시작(핫리로드) 시 기존 로그 파일을 삭제하고 새로 생성한다.**
 
 이유: 분석해야 할 로그 범위를 줄여 디버깅 효율을 높이기 위함
@@ -2000,7 +2005,7 @@ useEffect(() => {
 
 ---
 
-## 사용자에게 에러 표시 (CRITICAL)
+## 사용자에게 에러 표시
 
 ### 기본 원칙
 **에러 발생 시 사용자에게 자세한 에러 메시지를 웹 UI에 표시해야 합니다.**
@@ -2455,7 +2460,7 @@ Claude Code가 자동으로 수행하는 작업:
 
 ---
 
-## Railway 배포 전 체크리스트 (CRITICAL)
+## Railway 배포 전 체크리스트 (IMPORTANT)
 
 **`git push` 또는 Railway 배포 요청 전에 반드시 아래 항목을 확인해야 한다.**
 
@@ -2573,34 +2578,3 @@ ENVIRONMENT=production
 
 ---
 
-## samples 디렉토리 활용 (기능 테스트)
-
-**새로운 기능 추가 시 먼저 samples 디렉토리에서 독립적으로 테스트한다.**
-
-### 목적
-- 새 기능을 바로 코드에 적용하기 전에 독립적으로 테스트
-- 문제 발생 시 롤백 용이
-- 사용자가 기능 동작을 확인 후 통합 여부 결정
-
-### 워크플로우
-1. **테스트 파일 생성**: 새 기능 추가 요청 시 `samples/` 디렉토리에 테스트 파일 생성
-2. **독립 실행**: 테스트 파일을 단독으로 실행하여 기능 동작 확인
-3. **사용자 확인**: 테스트 완료 후 사용자에게 질문
-   ```
-   "테스트가 완료되었습니다. 이 기능을 코드에 반영하시겠습니까?"
-   ```
-4. **통합**: 승인 후 실제 코드에 통합
-
-### 예시
-```
-samples/
-├── gpt5_mini_example.py      # GPT-5-mini API 테스트
-├── redis_cache_example.py    # Redis 캐싱 테스트
-└── websocket_example.py      # WebSocket 연결 테스트
-```
-
-### 체크리스트
-- [ ] 새 기능 요청 시 samples 디렉토리에 테스트 파일 생성
-- [ ] 테스트 파일 단독 실행으로 기능 확인
-- [ ] 사용자에게 통합 여부 질문
-- [ ] 승인 후 실제 코드에 반영
