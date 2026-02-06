@@ -122,7 +122,7 @@ git tag v0.1.0
 5. 시간/날짜는 한국 시간(Asia/Seoul) 기준
 6. fallback 더미 값 금지 - 에러 메시지를 명확히 노출
 7. 사용자 작업에 성공/실패 메시지 항상 노출
-8. **디자인 레퍼런스**: `design/reference/` 폴더 이미지 확인 후 적용
+8. **디자인 레퍼런스**: `design/reference.png` 이미지 확인 후 적용
 
 ## 의존성 관리 및 환경 구축 (IMPORTANT)
 

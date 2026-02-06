@@ -278,7 +278,7 @@ aicoding-template/
 
 ### 2. 디자인 레퍼런스 추가 (선택)
 
-`design/reference/` 폴더에 원하는 디자인 이미지를 추가하면 Claude Code가 해당 스타일을 참고합니다.
+`design/reference.png`에 원하는 디자인 이미지를 추가하면 Claude Code가 해당 스타일을 참고합니다.
 
 ### 3. Claude Code에게 요청
 
