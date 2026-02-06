@@ -4,6 +4,246 @@
 - 모든 답변은 한국어로 작성한다.
 - 코드/로그/에러 메시지는 원문 유지, 설명은 한국어로 한다.
 
+## Docs / 최신 문서 규칙 (CRITICAL)
+
+**라이브러리/프레임워크/SDK 사용법이 관련된 작업 시 반드시 최신 문서를 확인해야 한다.**
+
+### 원칙
+1. 라이브러리/프레임워크/SDK 사용법을 묻는 요청이면, 답변 전에 **반드시 Context7 MCP를 사용**해 최신 문서 근거를 확인한다.
+2. Context7 근거가 부족하면 **WebFetch로 공식 문서(공식 도메인)**에서 추가 확인한다.
+3. 버전/날짜가 확인되면 **답변에 명시**한다.
+
+### 확인 우선순위
+| 순서 | 방법 | 설명 |
+|------|------|------|
+| 1 | Context7 MCP | 최신 문서 근거 확인 (우선 사용) |
+| 2 | WebFetch | 공식 문서 사이트에서 추가 확인 (Context7 부족 시) |
+| 3 | 기존 지식 | 위 두 방법으로 확인 불가 시에만 사용 (버전 주의 명시) |
+
+### 적용 시점
+- 새 패키지/라이브러리를 코드에 도입할 때
+- API 사용법, 설정 방법을 작성할 때
+- 사용자가 특정 라이브러리/프레임워크 사용법을 질문할 때
+- 기존 코드의 라이브러리 업그레이드/마이그레이션 시
+
+### 답변 형식 예시
+```
+"FastAPI v0.104.1 (2023-12- 기준 공식 문서 확인) 에서는
+`app.add_middleware(CORSMiddleware, ...)` 방식을 사용합니다."
+```
+
+### 주의사항
+- 오래된 지식 기반으로 deprecated API를 안내하지 않도록 주의
+- 버전에 따라 동작이 달라지는 경우 반드시 버전 명시
+- 공식 문서 외 블로그/Stack Overflow 등은 보조 자료로만 활용
+
+## 개발 환경 사전 점검 및 자동 설치 (CRITICAL - MANDATORY)
+
+> **⚠️ "프로젝트 구현해줘", "SPEC.md 기반으로 만들어줘" 등의 요청을 받으면, 코드 작성 전에 반드시 시스템 필수 도구와 MCP 서버 환경을 확인하고 설치해야 한다.**
+
+### 원칙
+- 프로젝트 구현 시작 **전에** 시스템 필수 도구와 MCP 서버 의존성을 먼저 확인/설치한다
+- 미설치 항목이 있으면 **OS를 감지하여 자동으로 설치**한 후 구현을 시작한다
+- 자동 설치가 불가능한 경우 사용자에게 설치 방법을 안내하고 확인 후 진행한다
+- 환경 변수가 필요한 항목은 사용자에게 **인터뷰 형식**으로 값을 입력받는다
+
+### 프로젝트 구현 요청 시 전체 실행 순서
+
+```
+[Step 0] 시스템 필수 도구 확인 및 설치   ← 가장 먼저!
+[Step 0.5] MCP 서버 환경 확인 및 설치
+[Step 1] .git 삭제 (Git 초기화)
+[Step 2] SPEC.md 검토 및 스펙 구체화
+[Step 3] 필수 설정값 인터뷰
+[Step 4] Plan Mode로 구현 계획 수립
+[Step 5] 프로젝트 파일 생성/수정
+[Step 6] 의존성 설치 (install.py)
+[Step 7] git init + 초기 커밋
+```
+
+---
+
+### Step 0: 시스템 필수 도구 확인 및 설치
+
+#### 0-1. OS 감지
+
+```bash
+uname -s   # Darwin(macOS), Linux
+# Windows는 platform.system()으로 확인
+```
+
+#### 0-2. 필수 도구 설치 확인
+
+아래 도구들이 **모두 설치되어 있어야** 프로젝트를 시작할 수 있다:
+
+```bash
+which git && git --version
+which python3 && python3 --version
+which node && node -v
+which npm && npm -v
+```
+
+#### 0-3. 미설치 도구 자동 설치
+
+**미설치 도구가 발견되면 OS에 맞는 패키지 매니저로 자동 설치한다.**
+
+| 도구 | 용도 | macOS (brew) | Linux (apt) | Windows |
+|------|------|-------------|-------------|---------|
+| **Homebrew** | 패키지 매니저 (macOS) | - | - | - |
+| **Git** | 버전 관리 | `brew install git` | `sudo apt-get install -y git` | `winget install Git.Git` |
+| **Python 3** | Backend 런타임 | `brew install python@3.11` | `sudo apt-get install -y python3 python3-pip python3-venv` | `winget install Python.Python.3.11` |
+| **Node.js** | Frontend 런타임 | `brew install node` | `curl -fsSL https://deb.nodesource.com/setup_20.x \| sudo -E bash - && sudo apt-get install -y nodejs` | `winget install OpenJS.NodeJS.LTS` |
+| **npm** | Node 패키지 매니저 | Node.js에 포함 | Node.js에 포함 | Node.js에 포함 |
+
+**macOS에서 Homebrew가 없는 경우 먼저 설치:**
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+**자동 설치 흐름 (macOS 기준 예시):**
+```bash
+# 1. Homebrew 확인
+which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 2. Git 확인/설치
+which git || brew install git
+
+# 3. Python 확인/설치
+which python3 || brew install python@3.11
+
+# 4. Node.js 확인/설치 (npm 포함)
+which node || brew install node
+```
+
+**설치 후 반드시 버전 재확인:**
+```bash
+git --version
+python3 --version
+node -v
+npm -v
+```
+
+#### 0-4. 시스템 도구 상태 테이블 출력
+
+확인 완료 후 아래 형식으로 상태를 출력한다:
+
+```
+| 도구 | 필요 버전 | 설치 상태 | 버전 | 비고 |
+|------|----------|----------|------|------|
+| Git | any | OK/설치함 | 2.x.x | - |
+| Python | >= 3.11 | OK/설치함 | 3.11.x | .python-version 참조 |
+| Node.js | >= 20 | OK/설치함 | v20.x.x | .nvmrc 참조 |
+| npm | any | OK | 10.x.x | Node.js에 포함 |
+```
+
+#### 0-5. 설치 실패 시 대응
+
+자동 설치가 실패하면:
+1. 에러 메시지를 사용자에게 출력
+2. 수동 설치 URL 안내:
+   - Git: https://git-scm.com
+   - Python: https://python.org
+   - Node.js: https://nodejs.org
+3. 사용자가 설치 완료했다고 확인한 후 다음 단계 진행
+
+---
+
+### Step 0.5: MCP 서버 환경 확인 및 설치
+
+#### 0.5-1. MCP CLI 도구 설치 확인
+
+```bash
+which npx              # context7, sequential-thinking, playwright, github용 (Step 0에서 Node.js 설치 시 포함)
+which uvx              # serena용
+which markitdown-mcp   # markitdown용
+```
+
+#### 0.5-2. 미설치 MCP 도구 자동 설치
+
+| CLI 도구 | 사용하는 MCP 서버 | 설치 명령어 |
+|----------|------------------|------------|
+| `npx` | context7, sequential-thinking, playwright, github | Step 0에서 Node.js 설치 시 자동 포함 |
+| `uvx` | serena | `pip install uv` |
+| `markitdown-mcp` | markitdown | `pip install markitdown-mcp` |
+
+```bash
+# uvx 미설치 시
+which uvx || pip install uv
+
+# markitdown-mcp 미설치 시
+which markitdown-mcp || pip install markitdown-mcp
+```
+
+#### 0.5-3. 환경 변수 확인
+
+```bash
+echo $CONTEXT7_API_KEY
+echo $GITHUB_PERSONAL_ACCESS_TOKEN
+```
+
+**환경 변수가 미설정이면 사용자에게 인터뷰:**
+
+```
+"MCP 서버 사용을 위해 환경 변수 설정이 필요합니다.
+
+Q1. Context7 API Key를 입력해주세요.
+    (https://context7.com 에서 발급, 없으면 'skip' 입력)
+
+Q2. GitHub Personal Access Token을 입력해주세요.
+    (GitHub Settings > Developer settings > Personal access tokens에서 발급, 없으면 'skip' 입력)"
+```
+
+- 사용자가 `skip`을 입력하면 해당 서버 없이 진행 (경고 메시지 출력)
+- 입력받은 값은 shell profile에 export 안내 또는 `.env`에 저장
+
+#### 0.5-4. MCP 서버 상태 테이블 출력
+
+```
+| MCP 서버 | CLI 도구 | 설치 상태 | 환경 변수 | 사용 가능 |
+|----------|----------|----------|----------|----------|
+| context7 | npx | OK | CONTEXT7_API_KEY: OK/미설정 | O/X |
+| sequential-thinking | npx | OK | - | O |
+| playwright | npx | OK | - | O |
+| github | npx | OK | GITHUB_PAT: OK/미설정 | O/X |
+| serena | uvx | OK/설치함 | - | O |
+| markitdown | markitdown-mcp | OK/설치함 | - | O |
+```
+
+---
+
+### 전체 체크리스트 (프로젝트 구현 시작 전)
+
+```
+시스템 필수 도구:
+[ ] OS를 감지했는가? (macOS/Linux/Windows)
+[ ] Git이 설치되어 있는가?
+[ ] Python 3.11+이 설치되어 있는가?
+[ ] Node.js 20+이 설치되어 있는가?
+[ ] npm이 설치되어 있는가?
+[ ] 미설치 도구를 자동 설치했는가?
+[ ] 시스템 도구 상태 테이블을 출력했는가?
+
+MCP 서버:
+[ ] .mcp.json 파일이 존재하는가?
+[ ] npx가 사용 가능한가?
+[ ] uvx가 설치되어 있는가? (없으면 pip install uv)
+[ ] markitdown-mcp가 설치되어 있는가? (없으면 pip install markitdown-mcp)
+[ ] CONTEXT7_API_KEY 환경 변수를 확인했는가?
+[ ] GITHUB_PERSONAL_ACCESS_TOKEN 환경 변수를 확인했는가?
+[ ] MCP 서버 상태 테이블을 출력했는가?
+
+[ ] 모든 확인 후 다음 단계(Git 초기화)로 진행하는가?
+```
+
+### 주의사항
+- 시스템 도구 + MCP 설치는 **프로젝트 구현 요청 시에만** 실행 (기능 추가/수정 시에는 불필요)
+- `sudo` 권한이 필요한 설치는 **반드시 사용자에게 사전 안내** 후 실행
+- 이미 설치되어 있으면 재설치하지 않고 바로 다음 단계로 진행
+- 설치 실패 시 해당 도구의 수동 설치 방법 안내 후 사용자 확인을 기다림
+- `.python-version`(3.11)과 `.nvmrc`(20) 파일의 버전을 기준으로 설치
+
+---
+
 ## Git 초기화 규칙 (CRITICAL - MANDATORY)
 
 > **⚠️ 이 규칙은 반드시 준수해야 합니다. 예외 없음.**
@@ -657,6 +897,111 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ```
 "이 기능을 위해 시스템 패키지 [패키지명]이 필요합니다.
 Dockerfile에 추가해도 될까요?"
+```
+
+### 개발/운영 의존성 파일 통일 (CRITICAL)
+
+**`requirements.txt`, `package.json` 등 의존성 파일은 개발 환경과 운영 환경을 분리하지 않고 하나로 통일한다.**
+
+#### 원칙
+- 의존성 파일은 **환경별로 분리하지 않는다** (단일 파일 유지)
+- 개발과 운영에서 **동일한 패키지, 동일한 버전**을 사용해야 한다
+- 환경 차이로 인한 "개발에서는 되는데 운영에서는 안 되는" 문제를 원천 차단한다
+
+#### 금지 사항
+
+```
+# ❌ 절대 하지 말 것 - 의존성 파일을 환경별로 분리
+backend/
+├── requirements.txt          # 공통
+├── requirements-dev.txt      # 개발용 ← 금지!
+├── requirements-prod.txt     # 운영용 ← 금지!
+└── requirements-test.txt     # 테스트용 ← 금지!
+
+# ❌ pip install 시 환경 분기도 금지
+pip install -r requirements-dev.txt   # ← 금지!
+pip install -r requirements-prod.txt  # ← 금지!
+```
+
+#### 올바른 방법
+
+```
+# ✅ 올바른 예시 - 단일 파일로 모든 환경 통일
+backend/
+└── requirements.txt    # 개발/테스트/운영 모두 이 파일 하나만 사용
+
+frontend/
+└── package.json        # 개발/운영 모두 이 파일 하나만 사용
+```
+
+**requirements.txt 예시:**
+```txt
+# 모든 환경에서 동일하게 사용
+fastapi==0.104.1
+uvicorn==0.24.0
+sqlalchemy==2.0.23
+alembic==1.13.0
+pytest==7.4.3
+ruff==0.1.8
+httpx==0.25.2
+```
+
+**package.json 예시:**
+```json
+{
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@testing-library/react": "^14.1.0",
+    "eslint": "^8.55.0",
+    "tailwindcss": "^3.3.6"
+  }
+}
+```
+
+> **참고**: `package.json`의 `devDependencies`는 npm의 표준 구조이므로 허용한다. 단, 별도의 `package.dev.json`이나 `package.prod.json` 같은 파일 분리는 금지한다.
+
+#### 이유
+
+| 문제 | 설명 |
+|------|------|
+| 환경 불일치 | 개발에서 테스트 통과 → 운영에서 패키지 누락으로 에러 |
+| 버전 충돌 | 환경별 파일에서 서로 다른 버전 지정 → 예측 불가능한 동작 |
+| 관리 복잡성 | 파일이 여러 개면 동기화 누락이 발생하기 쉬움 |
+| 디버깅 어려움 | "어느 파일에 추가해야 하지?" 혼란 발생 |
+
+#### 환경별 동작 차이는 환경 변수로 제어
+
+패키지가 아닌 **동작**의 차이는 `.env` 환경 변수로 제어한다:
+
+```python
+# ✅ 환경별 동작 차이는 환경 변수로
+import os
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+DEBUG = ENVIRONMENT == "development"
+LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
+```
+
+```
+# ❌ 잘못된 방법 - 환경별로 다른 패키지 설치
+# 운영에서 pytest 빼기, 개발에서만 debugpy 넣기 등 금지
+```
+
+#### 체크리스트
+
+```
+[ ] requirements.txt가 하나만 존재하는가?
+[ ] requirements-dev.txt, requirements-prod.txt 등 분리된 파일이 없는가?
+[ ] package.json이 하나만 존재하는가? (package.dev.json 등 없는가?)
+[ ] Dockerfile에서 단일 requirements.txt를 사용하는가?
+[ ] install.py에서 단일 requirements.txt를 사용하는가?
+[ ] 개발/운영 환경에서 동일한 패키지와 버전이 설치되는가?
 ```
 
 ---
