@@ -1,5 +1,9 @@
 # Stock Portfolio Tracker - Technical Specification
 
+> **이 문서의 용도**: 프로젝트 초기 구현 시 Claude가 참고하는 **설계 청사진**입니다.
+> 구현 완료 후에는 코드와 테스트가 진실의 원천(Source of Truth)이 됩니다.
+> 큰 아키텍처 변경이 있을 때만 이 문서를 업데이트합니다.
+>
 > **참고**: 이 프로젝트는 웹 애플리케이션 개발을 위한 **예시 샘플 프로젝트**입니다.
 > React + FastAPI 풀스택 개발의 구조, 패턴, 베스트 프랙티스를 보여주는 학습 및 참고용 자료입니다.
 
@@ -20,6 +24,9 @@
 | **인증 필요** | No (API 키 불필요) |
 | **비용** | 무료 |
 | **Rate Limit** | 비공식 API이므로 과도한 요청 시 차단 가능 (1초 간격 권장) |
+
+<details>
+<summary>📋 참고 가이드: 데이터 소스 타입 비교 (구현 대상 아님, 접어두기)</summary>
 
 #### 데이터 소스 타입 가이드
 
@@ -43,6 +50,8 @@
 | 한국투자증권 API | 무제한 | 필요 | 지원 | 지원 |
 
 *비공식 API이므로 안정성 보장 없음
+
+</details>
 
 ### 0.2 Input (사용자 입력)
 
@@ -311,6 +320,15 @@ const data = [
 
 ### 5.1 REST Endpoints
 
+> **규칙**: 모든 엔드포인트는 trailing slash 없이 통일 (`/api/v1/users` O, `/api/v1/users/` X)
+
+#### System Endpoints
+```
+GET /health
+- 서버 상태 확인 (Railway 배포 필수)
+- Response: { "status": "healthy" }
+```
+
 #### Portfolio Endpoints
 ```
 GET /api/v1/portfolio/summary
@@ -384,103 +402,131 @@ GET /api/v1/stocks/search?q={query}
 
 ## 6. Database Schema (SQLite3)
 
-### 6.1 Tables
+### 6.1 SQLAlchemy Models (스키마 원천)
 
-#### holdings (보유 종목)
-```sql
-CREATE TABLE holdings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol TEXT NOT NULL UNIQUE,    -- 종목 코드
-    name TEXT,                       -- 종목명
-    quantity INTEGER DEFAULT 0,      -- 보유 수량
-    avg_price REAL DEFAULT 0,        -- 평균 매수가
-    total_cost REAL DEFAULT 0,       -- 총 매수 금액
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_holdings_symbol ON holdings(symbol);
-```
-
-#### transactions (거래 내역)
-```sql
-CREATE TABLE transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol TEXT NOT NULL,            -- 종목 코드
-    trade_type TEXT NOT NULL,        -- BUY, SELL, DIVIDEND
-    quantity INTEGER NOT NULL,       -- 수량
-    price REAL NOT NULL,             -- 단가
-    total_amount REAL NOT NULL,      -- 총 금액
-    trade_date TEXT NOT NULL,        -- 거래일
-    memo TEXT,                       -- 메모
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (symbol) REFERENCES holdings(symbol)
-);
-
-CREATE INDEX idx_transactions_symbol ON transactions(symbol);
-CREATE INDEX idx_transactions_date ON transactions(trade_date DESC);
-```
-
-#### price_cache (시세 캐시)
-```sql
-CREATE TABLE price_cache (
-    symbol TEXT PRIMARY KEY,
-    price REAL NOT NULL,
-    change REAL,
-    change_percent REAL,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-#### portfolio_history (포트폴리오 히스토리)
-```sql
-CREATE TABLE portfolio_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL UNIQUE,
-    total_value REAL NOT NULL,
-    total_cost REAL NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_portfolio_history_date ON portfolio_history(date DESC);
-```
-
-### 6.2 SQLAlchemy Models
+> **규칙**: Raw SQL 사용 금지. SQLAlchemy ORM 모델이 DB 스키마의 원천이며, Alembic으로 마이그레이션한다.
 
 ```python
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from database import Base
 
+
 class Holding(Base):
+    """보유 종목"""
     __tablename__ = "holdings"
 
     id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String, unique=True, nullable=False, index=True)
-    name = Column(String)
-    quantity = Column(Integer, default=0)
-    avg_price = Column(Float, default=0)
-    total_cost = Column(Float, default=0)
-    created_at = Column(String)
-    updated_at = Column(String)
+    symbol = Column(String, unique=True, nullable=False, index=True)  # 종목 코드
+    name = Column(String)                        # 종목명
+    quantity = Column(Integer, default=0)         # 보유 수량
+    avg_price = Column(Float, default=0)          # 평균 매수가
+    total_cost = Column(Float, default=0)         # 총 매수 금액
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     transactions = relationship("Transaction", back_populates="holding")
 
 
 class Transaction(Base):
+    """거래 내역"""
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String, ForeignKey("holdings.symbol"), nullable=False)
-    trade_type = Column(String, nullable=False)  # BUY, SELL, DIVIDEND
+    symbol = Column(String, ForeignKey("holdings.symbol"), nullable=False, index=True)
+    trade_type = Column(String, nullable=False)   # BUY, SELL, DIVIDEND
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
     total_amount = Column(Float, nullable=False)
-    trade_date = Column(String, nullable=False)
+    trade_date = Column(DateTime, nullable=False, index=True)
     memo = Column(Text)
-    created_at = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     holding = relationship("Holding", back_populates="transactions")
+
+
+class PriceCache(Base):
+    """시세 캐시"""
+    __tablename__ = "price_cache"
+
+    symbol = Column(String, primary_key=True)
+    price = Column(Float, nullable=False)
+    change = Column(Float)
+    change_percent = Column(Float)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PortfolioHistory(Base):
+    """포트폴리오 히스토리"""
+    __tablename__ = "portfolio_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(DateTime, nullable=False, unique=True, index=True)
+    total_value = Column(Float, nullable=False)
+    total_cost = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+```
+
+### 6.2 Pydantic Schemas (API 요청/응답)
+
+> **규칙**: DB 스키마 변경 시 Pydantic 스키마도 반드시 함께 업데이트한다.
+
+```python
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+
+
+# --- Trade ---
+class TradeCreate(BaseModel):
+    symbol: str
+    trade_type: str        # BUY, SELL, DIVIDEND
+    quantity: int
+    price: float
+    trade_date: datetime
+    memo: Optional[str] = None
+
+class TradeResponse(BaseModel):
+    id: int
+    symbol: str
+    trade_type: str
+    quantity: int
+    price: float
+    total_amount: float
+    trade_date: datetime
+    memo: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Holding ---
+class HoldingResponse(BaseModel):
+    id: int
+    symbol: str
+    name: Optional[str]
+    quantity: int
+    avg_price: float
+    total_cost: float
+    current_price: float       # 실시간 조회
+    market_value: float        # quantity * current_price
+    return_amount: float       # market_value - total_cost
+    return_rate: float         # return_amount / total_cost * 100
+
+    class Config:
+        from_attributes = True
+
+
+# --- Portfolio ---
+class PortfolioSummary(BaseModel):
+    total_value: float
+    total_cost: float
+    total_return: float
+    return_rate: float
+    daily_change: float
+    daily_change_percent: float
 ```
 
 ---
@@ -551,9 +597,22 @@ design/
 
 ---
 
-## 8. Frontend Components
+## 8. Frontend Routes & Components
 
-### 8.1 Dashboard Summary
+### 8.0 Page Routes
+
+| URL | 페이지 | 설명 |
+|-----|--------|------|
+| `/` | Dashboard | 포트폴리오 요약, 보유 종목, 차트 |
+| `/trades` | Trade List | 거래 내역 목록 |
+| `/trades/new` | Trade Form | 새 거래 추가 |
+| `/stocks/:symbol` | Stock Detail | 종목 상세 정보, 차트, 거래 내역 |
+
+> **규칙**: 새 페이지는 반드시 새 URL로 생성. 모달/조건부 렌더링으로 페이지를 대체하지 않는다.
+
+### 8.1 Frontend Components
+
+#### Dashboard Summary
 ```jsx
 function DashboardSummary({ portfolio }) {
   return (
@@ -582,7 +641,7 @@ function DashboardSummary({ portfolio }) {
 }
 ```
 
-### 8.2 Holdings Table
+#### Holdings Table
 ```jsx
 function HoldingsTable({ holdings }) {
   return (
@@ -616,7 +675,7 @@ function HoldingsTable({ holdings }) {
 }
 ```
 
-### 8.3 Trade Form
+#### Trade Form
 ```jsx
 function TradeForm({ onSubmit }) {
   const [formData, setFormData] = useState({
@@ -740,7 +799,22 @@ def get_price_with_cache(symbol: str, db: Session):
     return price
 ```
 
-### 9.4 Error Handling
+### 9.4 Database Migration (Alembic)
+
+```bash
+# 초기 설정
+alembic init alembic
+
+# 모델 변경 후 마이그레이션 생성
+alembic revision --autogenerate -m "설명"
+
+# 마이그레이션 적용
+alembic upgrade head
+```
+
+> **규칙**: 모델 변경 후 반드시 마이그레이션 파일을 생성하고 Git에 커밋한다.
+
+### 9.5 Error Handling
 
 ```python
 class StockNotFoundError(Exception):
@@ -802,13 +876,17 @@ def get_stock_info(symbol: str):
 stock-portfolio-tracker/
 ├── frontend/                # React 프론트엔드
 │   ├── src/
-│   │   ├── components/     # React 컴포넌트
-│   │   │   ├── Dashboard.jsx
+│   │   ├── components/     # 재사용 컴포넌트
+│   │   │   ├── DashboardSummary.jsx
 │   │   │   ├── HoldingsTable.jsx
 │   │   │   ├── TradeForm.jsx
 │   │   │   └── Charts.jsx
-│   │   ├── pages/          # 페이지 컴포넌트
-│   │   ├── api/            # API 클라이언트
+│   │   ├── pages/          # 페이지 컴포넌트 (라우트 단위)
+│   │   │   ├── DashboardPage.jsx
+│   │   │   ├── TradeListPage.jsx
+│   │   │   ├── TradeNewPage.jsx
+│   │   │   └── StockDetailPage.jsx
+│   │   ├── api/            # Axios API 클라이언트
 │   │   ├── utils/          # 유틸리티 (포맷터 등)
 │   │   └── App.jsx
 │   ├── package.json
@@ -816,7 +894,7 @@ stock-portfolio-tracker/
 │
 ├── backend/                 # FastAPI 백엔드
 │   ├── app/
-│   │   ├── api/            # API 엔드포인트
+│   │   ├── api/            # API 라우터
 │   │   │   ├── portfolio.py
 │   │   │   ├── trades.py
 │   │   │   └── stocks.py
@@ -825,8 +903,11 @@ stock-portfolio-tracker/
 │   │   ├── services/       # 비즈니스 로직
 │   │   │   ├── portfolio_service.py
 │   │   │   └── stock_service.py
+│   │   ├── repositories/   # 데이터 접근 계층
+│   │   ├── utils/          # 유틸리티
 │   │   ├── database.py     # DB 연결
 │   │   └── main.py         # FastAPI 앱
+│   ├── alembic/             # DB 마이그레이션
 │   ├── tests/
 │   └── requirements.txt
 │
@@ -866,10 +947,23 @@ VITE_APP_NAME=Stock Portfolio Tracker
 
 ## 13. Testing Strategy
 
-### 13.1 Backend Tests
+### 13.1 Backend 테스트 시나리오
+
+| 영역 | 테스트 항목 | 검증 내용 |
+|------|-----------|----------|
+| Portfolio | 포트폴리오 가치 계산 | 보유 종목 × 현재가 합산 정확성 |
+| Portfolio | 수익률 계산 | (현재가 - 평균단가) / 평균단가 × 100 |
+| Trade | 매수 거래 추가 | holdings 수량/평균단가 업데이트 |
+| Trade | 매도 거래 추가 | 보유 수량 초과 매도 시 에러 |
+| Trade | 거래 삭제 | holdings 재계산 |
+| Stock | 시세 조회 | yfinance 모킹, 캐시 TTL 검증 |
+| Stock | 잘못된 종목 코드 | StockNotFoundError 발생 |
+| API | /health 엔드포인트 | 200 OK 응답 |
+
 ```python
 # tests/test_portfolio.py
 def test_calculate_portfolio_value():
+    """포트폴리오 총 가치와 총 비용 계산"""
     holdings = [
         {"symbol": "AAPL", "quantity": 10, "avg_price": 150},
         {"symbol": "GOOGL", "quantity": 5, "avg_price": 2800},
@@ -881,26 +975,41 @@ def test_calculate_portfolio_value():
     assert result["total_value"] == 10 * 175 + 5 * 2900
     assert result["total_cost"] == 10 * 150 + 5 * 2800
 
-def test_add_trade():
-    # 매수 거래 추가 후 holdings 업데이트 확인
-    pass
 
-def test_get_stock_price():
-    # yfinance 모킹 테스트
-    pass
+def test_add_buy_trade_updates_holding(db_session):
+    """매수 거래 추가 시 보유 종목의 수량과 평균단가가 업데이트된다"""
+    # Arrange: 기존 보유 종목 (10주, 평균 $150)
+    # Act: 10주 추가 매수 ($200)
+    # Assert: 20주, 평균 $175
+
+
+def test_sell_exceeding_quantity_raises_error(db_session):
+    """보유 수량보다 많은 매도 시 에러가 발생한다"""
+    # Arrange: 10주 보유
+    # Act & Assert: 15주 매도 시도 → ValueError
 ```
 
-### 13.2 Frontend Tests
+### 13.2 Frontend 테스트 시나리오
+
+| 영역 | 테스트 항목 | 검증 내용 |
+|------|-----------|----------|
+| TradeForm | 필수 필드 검증 | 종목코드/수량/단가 비어있으면 제출 불가 |
+| TradeForm | 정상 제출 | API 호출 + 성공 메시지 표시 |
+| HoldingsTable | 데이터 렌더링 | 종목 목록이 테이블에 표시 |
+| HoldingsTable | 수익률 색상 | 양수=초록, 음수=빨강 |
+| Dashboard | API 에러 처리 | 에러 시 에러 메시지 표시 (더미값 X) |
+
 ```javascript
 // TradeForm.test.jsx
 describe('TradeForm', () => {
-  it('should validate required fields', () => {
-    // ...
-  });
+  it('종목코드 없이 제출하면 에러 메시지를 표시한다', () => {});
+  it('정상 입력 후 제출하면 API를 호출하고 성공 메시지를 표시한다', () => {});
+});
 
-  it('should submit trade on valid input', () => {
-    // ...
-  });
+// HoldingsTable.test.jsx
+describe('HoldingsTable', () => {
+  it('보유 종목 목록을 렌더링한다', () => {});
+  it('수익률이 양수면 초록색, 음수면 빨간색으로 표시한다', () => {});
 });
 ```
 
@@ -916,6 +1025,6 @@ describe('TradeForm', () => {
 
 ---
 
-**Document Version**: 2.0
-**Last Updated**: 2024-01-15
+**Document Version**: 3.0
 **Template Type**: Stock Portfolio Tracker
+**용도**: 초기 구현 청사진 (구현 후에는 코드가 Source of Truth)
