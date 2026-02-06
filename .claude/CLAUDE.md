@@ -12,18 +12,19 @@
 - 모든 답변은 한국어로 작성한다.
 - 코드/로그/에러 메시지는 원문 유지, 설명은 한국어로 한다.
 
-## 기술 스택 (고정)
+## 기술 스택
 
-| 영역 | 기술 |
-|------|------|
-| Frontend | React + Vite + TailwindCSS |
-| Backend | Python + FastAPI + SQLAlchemy |
-| Database | SQLite (개발) / PostgreSQL (프로덕션) |
-| Chart | Recharts |
-| HTTP Client | Axios |
-| Lint | ESLint (Frontend), Ruff (Backend) |
-| Test | Vitest (Frontend), pytest (Backend) |
-| 배포 | Docker + Railway |
+| 영역 | 기술 | 비고 |
+|------|------|------|
+| Frontend | React + Vite + TailwindCSS | 고정 |
+| Backend | Python + FastAPI + SQLAlchemy | 고정 |
+| Database | SQLite (개발) / PostgreSQL (프로덕션) | 고정 |
+| 상태관리 | SPEC.md 정의에 따름 | 프로젝트별 선택 |
+| HTTP/데이터 | SPEC.md 정의에 따름 | 프로젝트별 선택 |
+| Chart | 필요 시 Recharts 권장 | 프로젝트별 선택 |
+| Lint | ESLint (Frontend), Ruff (Backend) | 고정 |
+| Test | Vitest (Frontend), pytest (Backend) | 고정 |
+| 배포 | Docker + Railway | 고정 |
 
 ## Docs / 최신 문서 규칙 (IMPORTANT)
 

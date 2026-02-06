@@ -1,144 +1,129 @@
-# Stock Portfolio Tracker - Technical Specification
+# Instagram-Style MVP - Technical Specification (SPEC.md)
 
-> **이 문서의 용도**: 프로젝트 초기 구현 시 Claude가 참고하는 **설계 청사진**입니다.
-> 구현 완료 후에는 코드와 테스트가 진실의 원천(Source of Truth)이 됩니다.
+> **이 문서의 용도**: 프로젝트 초기 구현 시 Claude가 참고하는 **설계 청사진**입니다.  
+> 구현 완료 후에는 **코드와 테스트가 Source of Truth**입니다.  
 > 큰 아키텍처 변경이 있을 때만 이 문서를 업데이트합니다.
 >
-> **참고**: 이 프로젝트는 웹 애플리케이션 개발을 위한 **예시 샘플 프로젝트**입니다.
-> React + FastAPI 풀스택 개발의 구조, 패턴, 베스트 프랙티스를 보여주는 학습 및 참고용 자료입니다.
+> **참고**: 이 프로젝트는 **학습/샘플용** 웹 애플리케이션 예시입니다.  
+> React + FastAPI 풀스택 개발의 구조, 패턴, 베스트 프랙티스를 보여줍니다.
 
 ---
 
 ## 0. Data Flow Definition (필수 - 프로젝트 시작 전 정의)
 
-> **IMPORTANT**: 프로젝트 개발 전에 이 섹션을 먼저 작성하세요.
-> 데이터 소스와 흐름을 명확히 정의하지 않으면 개발 중 큰 삽질이 발생합니다.
+> **IMPORTANT**: 데이터 소스와 흐름을 먼저 정의하지 않으면 업로드/피드/권한/캐시에서 큰 삽질이 발생합니다.
 
 ### 0.1 Data Source (데이터 소스)
 
 | 항목 | 내용 |
 |------|------|
-| **소스 타입** | External API (무료) |
-| **소스 이름** | Yahoo Finance (yfinance 라이브러리) |
-| **접근 방법** | Python 라이브러리 (pip install yfinance) |
-| **인증 필요** | No (API 키 불필요) |
-| **비용** | 무료 |
-| **Rate Limit** | 비공식 API이므로 과도한 요청 시 차단 가능 (1초 간격 권장) |
+| **소스 타입** | User-Generated Content + Storage + DB |
+| **소스 이름** | (1) 사용자 업로드 이미지 (2) 관계형 DB |
+| **접근 방법** | Backend 업로드 API → Object Storage(S3 호환) → CDN URL 제공 |
+| **인증 필요** | Yes (JWT 기반) |
+| **비용** | 로컬 개발: 무료 / 운영: 스토리지+대역폭 비용 |
+| **Rate Limit** | 업로드/로그인/검색 등은 제한 필요 (IP/User 기반) |
 
-<details>
-<summary>📋 참고 가이드: 데이터 소스 타입 비교 (구현 대상 아님, 접어두기)</summary>
+#### 스토리지 권장
+- **개발**: 로컬 파일 시스템(./storage) 또는 MinIO
+- **운영**: S3 호환(Object Storage) + CDN  
+  (예: AWS S3, Cloudflare R2, Supabase Storage, Backblaze B2 등)
 
-#### 데이터 소스 타입 가이드
-
-| 타입 | 예시 | 난이도 | 비용 |
-|------|------|--------|------|
-| **Public API (무료)** | Yahoo Finance, CoinGecko | 쉬움 | 무료 |
-| **Public API (유료)** | Alpha Vantage Pro, Bloomberg | 쉬움 | 유료 |
-| **API 키 필요** | Alpha Vantage (무료), Finnhub | 보통 | 무료/유료 |
-| **OAuth 필요** | Google Sheets, Notion | 어려움 | 무료 |
-| **크롤링** | 네이버 금융, 다음 금융 | 보통 | 무료 |
-| **파일 업로드** | CSV 거래내역, Excel 포트폴리오 | 쉬움 | 무료 |
-| **사용자 입력** | 매수/매도 기록 직접 입력 | 쉬움 | 무료 |
-
-#### 주식 데이터 API 비교
-
-| API | 무료 한도 | API 키 | 실시간 | 한국 주식 |
-|-----|----------|--------|--------|----------|
-| **Yahoo Finance** | 무제한* | 불필요 | 15분 지연 | 지원 (.KS, .KQ) |
-| Alpha Vantage | 25회/일 | 필요 | 유료만 | 미지원 |
-| Finnhub | 60회/분 | 필요 | 지원 | 미지원 |
-| 한국투자증권 API | 무제한 | 필요 | 지원 | 지원 |
-
-*비공식 API이므로 안정성 보장 없음
-
-</details>
+---
 
 ### 0.2 Input (사용자 입력)
 
-| 입력 항목 | 타입 | 예시 | 필수 여부 |
-|-----------|------|------|----------|
-| 종목 코드 | String | AAPL, 005930.KS (삼성전자) | 필수 |
-| 매수 가격 | Number | 150.00 (USD), 70000 (KRW) | 필수 |
-| 매수 수량 | Number | 10 | 필수 |
-| 매수 날짜 | Date | 2024-01-15 | 필수 |
-| 메모 | String | "장기 투자용" | 선택 |
+| 입력 항목 | 타입 | 예시 | 필수 |
+|-----------|------|------|------|
+| 회원가입 이메일 | String | user@example.com | 필수 |
+| 비밀번호 | String | ******** | 필수 |
+| 사용자명(username) | String | sangwoo | 필수 (유니크) |
+| 프로필 이름 | String | Sangwoo | 선택 |
+| 프로필 소개(bio) | String | “Hello” | 선택 |
+| 프로필 사진 | File | jpg/png/webp | 선택 |
+| 게시글 이미지 | File[] | 최대 10장 | 필수(최소 1장) |
+| 캡션 | String | “오늘의 기록” | 선택 |
+| 해시태그 | String[] | #travel #coffee | 선택 |
+| 댓글 | String | “멋져요!” | 선택 |
+| 좋아요 | Action | like/unlike | 필수(액션) |
+| 팔로우 | Action | follow/unfollow | 필수(액션) |
+
+---
 
 ### 0.3 Output (결과 출력)
 
 | 출력 항목 | 형태 | 설명 |
-|-----------|------|------|
-| 포트폴리오 요약 | 카드 UI | 총 자산, 총 수익률, 일간 변동 |
-| 보유 종목 목록 | 테이블 | 종목별 현재가, 평가금액, 수익률 |
-| 포트폴리오 차트 | 파이 차트 | 종목별 비중 |
-| 수익률 그래프 | 라인 차트 | 시간별 포트폴리오 가치 변동 |
-| 종목 상세 정보 | 상세 페이지 | 차트, 재무정보, 뉴스 |
+|----------|------|------|
+| 홈 피드 | 무한 스크롤 | 팔로우 기반 최신 게시글 |
+| 게시글 상세 | 상세 페이지 | 이미지 캐러셀, 캡션, 댓글 |
+| 프로필 | 프로필 페이지 | 게시글 그리드, 팔로워/팔로잉 |
+| 검색/탐색 | 리스트/그리드 | 유저/해시태그/게시글 탐색 |
+| 알림 | 리스트 | 좋아요/댓글/팔로우 이벤트 |
+
+---
 
 ### 0.4 Data Flow Diagram
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   User      │     │  Frontend   │     │   Backend   │     │ Data Source │
-│   Input     │────▶│   (React)   │────▶│  (FastAPI)  │────▶│  (Yahoo     │
-│ (종목, 수량) │     │             │     │             │     │  Finance)   │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-                           │                   │                   │
-                           │                   │                   │
-                           ▼                   ▼                   │
-                    ┌─────────────┐     ┌─────────────┐            │
-                    │   Output    │◀────│  Database   │◀───────────┘
-                    │ (대시보드)   │     │  (SQLite3)  │  (시세 캐싱)
-                    └─────────────┘     └─────────────┘
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   User      │     │  Frontend   │     │   Backend   │
+│ (Web/Mobile)│────▶│   (React)   │────▶│  (FastAPI)  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                                │
+                             ┌──────────────────┼──────────────────┐
+                             ▼                  ▼                  ▼
+                        ┌─────────┐        ┌──────────┐       ┌──────────┐
+                        │   DB    │        │  Storage │       │   Cache  │
+                        │Postgres │        │  (S3)    │       │ (Redis*) │
+                        └─────────┘        └──────────┘       └──────────┘
+                             ▲                  │                  ▲
+                             └─────── Feed/Graph ┴── CDN URL ──────┘
+
+*Redis는 MVP에서는 선택(로컬/SQLite로도 가능). 운영 권장.
 ```
+
+---
 
 ### 0.5 Data Refresh (데이터 갱신 주기)
 
 | 데이터 | 갱신 주기 | 방법 |
-|--------|----------|------|
-| 주가 시세 | 1분마다 (장중) | Polling / WebSocket |
-| 포트폴리오 계산 | 시세 업데이트 시 | Event-driven |
-| 종목 기본정보 | 1일 1회 | Daily batch |
-| 차트 데이터 | 요청 시 | On-demand |
+|------|----------|------|
+| 홈 피드 | 사용자 스크롤 시 | Cursor Pagination |
+| 좋아요/댓글 | 즉시 | Optimistic UI + 서버 반영 |
+| 알림 | 10~30초 polling 또는 WebSocket | MVP: polling / 확장: WS |
+| 썸네일/리사이즈 | 업로드 시 | 서버 동기 처리(MVP) / 확장: 큐 |
+
+---
 
 ### 0.6 Data Access Checklist (개발 전 확인사항)
 
-프로젝트 시작 전 반드시 확인하세요:
-
-- [x] 데이터 소스에 접근 가능한가? → Yahoo Finance는 API 키 없이 접근 가능
-- [x] Rate limit이 있는가? → 비공식 API, 1초 간격 요청 권장
-- [x] 데이터 형식은 무엇인가? → JSON (yfinance가 DataFrame으로 변환)
-- [x] 인증 방식은 무엇인가? → 인증 불필요
-- [x] 비용이 발생하는가? → 무료
-- [x] 데이터 갱신 주기는 어떻게 되는가? → 15분 지연 (무료)
-- [x] 오프라인/에러 시 대체 방안은? → DB 캐시된 마지막 시세 사용
+- [x] 스토리지 업로드 후 **공개 URL**로 서빙 가능한가?
+- [x] 업로드 크기 제한(예: 10MB/장)과 타입 제한(jpg/png/webp)이 정의되었는가?
+- [x] 권한 모델(내 피드=팔로우 기반, 비공개 계정 등)이 정의되었는가?
+- [x] 피드/댓글/검색에 대한 페이지네이션 방식(cursor)이 정의되었는가?
+- [x] 삭제(게시글/댓글) 시 연관 데이터(좋아요/알림) 처리 정책이 있는가?
 
 ---
 
 ## 1. Project Overview
 
 ### 1.1 Purpose
-Stock Portfolio Tracker는 개인 투자자가 자신의 주식 포트폴리오를 관리하고 수익률을 추적할 수 있는 웹 애플리케이션입니다.
+Instagram-Style MVP는 사용자가 사진을 업로드하고, 팔로우 기반 피드를 보고, 좋아요/댓글/알림을 통해 상호작용하는 **소셜 사진 앱**입니다.
 
-**이 프로젝트의 목적**:
-1. **학습 자료**: React + FastAPI 풀스택 웹 개발의 실전 예제
-2. **참고 샘플**: 프로젝트 구조, API 설계, 데이터베이스 스키마 설계의 좋은 예시
-3. **템플릿**: 새로운 웹 프로젝트 시작 시 참고할 수 있는 boilerplate
+### 1.2 MVP Goals (기본 기능 “풀셋”)
+> “MVP”이지만 **인스타그램의 기본 경험**을 구성하는 핵심 기능을 모두 구현합니다.
 
-### 1.2 Goals
-- 보유 종목 및 거래 내역 관리
-- 실시간 포트폴리오 가치 및 수익률 계산
-- 종목별/전체 수익률 시각화
-- 포트폴리오 비중 분석
+- 회원가입/로그인/로그아웃, 토큰 갱신(Access/Refresh)
+- 프로필(사진/소개/게시글 그리드) + 프로필 편집
+- 게시글 업로드(복수 이미지), 캡션, 해시태그
+- 홈 피드(팔로우 기반), 게시글 상세
+- 좋아요/댓글(작성/삭제), 좋아요 목록
+- 팔로우/언팔로우, 팔로워/팔로잉 목록
+- 검색(유저, 해시태그) + 탐색(인기/최신)
+- 알림(좋아요/댓글/팔로우)
 
-### 1.3 Target Users
-- 주식 투자를 시작한 개인 투자자
-- 여러 증권사 계좌를 통합 관리하고 싶은 사용자
-- 투자 성과를 체계적으로 기록하고 싶은 사용자
-
-### 1.4 Key Use Cases
-- 매수/매도 거래 기록 추가
-- 포트폴리오 현황 대시보드 조회
-- 종목별 상세 정보 및 차트 확인
-- 수익률 분석 및 리포트 생성
+> **범위 제외(Non-goals)**: Reels/Stories/Live/쇼핑/광고/고급 추천 알고리즘(ML)/DM
+> 단, 탐색 탭은 "인기 점수(좋아요/댓글/시간)" 기반의 단순 랭킹으로 구현.
 
 ---
 
@@ -147,779 +132,478 @@ Stock Portfolio Tracker는 개인 투자자가 자신의 주식 포트폴리오�
 ### 2.1 High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Frontend (React)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  Dashboard   │  │   Portfolio  │  │    Stock     │      │
-│  │   Summary    │  │    Table     │  │   Detail     │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-│  ┌──────────────┐  ┌──────────────┐                        │
-│  │ Trade Form   │  │    Charts    │                        │
-│  └──────────────┘  └──────────────┘                        │
-└─────────────────────────────────────────────────────────────┘
-                              ↕ HTTP/REST API
-┌─────────────────────────────────────────────────────────────┐
-│                     Backend (FastAPI)                        │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  API Layer   │  │   Portfolio  │  │    Stock     │      │
-│  │  (FastAPI)   │  │   Service    │  │   Service    │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-└─────────────────────────────────────────────────────────────┘
-           ↕                    ↕                    ↕
-┌──────────────────┐  ┌─────────────────────────────────────┐
-│   SQLite3        │  │     Yahoo Finance API               │
-│   (Database)     │  │     (yfinance library)              │
-└──────────────────┘  └─────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                        Frontend (React)                        │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐  │
+│  │   Feed    │ │  Explore  │ │  Profile  │ │  Post Detail  │  │
+│  └───────────┘ └───────────┘ └───────────┘ └───────────────┘  │
+│  ┌───────────┐ ┌───────────────┐                               │
+│  │  Upload   │ │ Notifications │                               │
+│  └───────────┘ └───────────────┘                               │
+└───────────────────────────────────────────────────────────────┘
+                               ↕ HTTP/REST
+┌───────────────────────────────────────────────────────────────┐
+│                     Backend (FastAPI)                          │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐  │
+│  │   Auth    │ │   Feed    │ │   Social  │ │    Search     │  │
+│  └───────────┘ └───────────┘ └───────────┘ └───────────────┘  │
+│  ┌───────────┐ ┌───────────────┐                               │
+│  │  Upload   │ │ Notifications │                               │
+│  └───────────┘ └───────────────┘                               │
+└───────────────────────────────────────────────────────────────┘
+             ↕                         ↕
+      ┌───────────────┐        ┌────────────────┐
+      │ Postgres/SQLite│        │ S3-Compatible  │
+      │   (DB)         │        │ Storage + CDN  │
+      └───────────────┘        └────────────────┘
 ```
 
 ### 2.2 Component Breakdown
 
 #### Frontend (React)
-- **역할**: 사용자 인터페이스 제공 및 데이터 시각화
-- **기술**: React, Recharts (차트), Axios
-- **주요 컴포넌트**:
-  - Dashboard Summary (총 자산, 수익률)
-  - Portfolio Table (보유 종목 목록)
-  - Stock Detail View (종목 상세 정보)
-  - Trade Form (매수/매도 입력)
-  - Charts (파이차트, 라인차트)
+- **기술**: React + Vite, TypeScript(권장), TailwindCSS, React Router
+- **상태/데이터**: TanStack Query(서버 상태) + Zustand(로컬 UI 상태)
+- **주요 화면**
+  - Home Feed / Explore / Profile / Post Detail
+  - Upload Flow(미리보기+캡션)
+  - Notifications
 
-#### Backend API (FastAPI)
-- **역할**: 비즈니스 로직 처리, API 제공
-- **기술**: Python, FastAPI, SQLAlchemy
-- **주요 모듈**:
-  - REST API endpoints
-  - Portfolio calculation
-  - Stock data fetching
-  - Request validation
+#### Backend (FastAPI)
+- **기술**: FastAPI, Pydantic, SQLAlchemy 2.x, Alembic
+- **인증**: JWT Access/Refresh + bcrypt 해싱
+- **스토리지**: S3 SDK(boto3) 또는 추상화 레이어(StorageService)
 
-#### Stock Service
-- **역할**: Yahoo Finance에서 주식 데이터 조회
-- **기술**: Python, yfinance
-- **주요 기능**:
-  - 현재가 조회
-  - 과거 시세 조회
-  - 종목 기본 정보 조회
-  - 데이터 캐싱
-
-#### Database (SQLite3)
-- **역할**: 사용자 데이터 저장
-- **저장 데이터**:
-  - 보유 종목 (holdings)
-  - 거래 내역 (transactions)
-  - 시세 캐시 (price_cache)
+#### Database
+- **개발**: SQLite(가능)  
+- **운영**: Postgres(권장)
+- **주요 테이블**: users, posts, media, follows, likes, comments, hashtags, post_hashtags, notifications
 
 ---
 
-## 3. Data Flow
+## 3. Core Features & User Stories
 
-### 3.1 주가 조회 Flow
-```
-사용자 대시보드 접속 → Frontend 렌더링 →
-Backend API 호출 → yfinance로 현재가 조회 →
-DB에서 보유 종목 조회 → 수익률 계산 →
-JSON 응답 → Frontend 렌더링
-```
+### 3.1 Auth & Account
+- 사용자는 이메일/비밀번호로 가입하고 로그인한다.
+- 사용자는 username으로 프로필 URL을 가진다(`/:username`).
 
-### 3.2 거래 추가 Flow
-```
-사용자 거래 입력 (종목, 가격, 수량) →
-Frontend Form Submit → Backend API 호출 →
-DB에 거래 저장 → Holdings 업데이트 →
-성공 응답 → Frontend 새로고침
-```
+### 3.2 Profile
+- 사용자는 프로필 사진, 표시 이름, bio를 설정한다.
+- 프로필 페이지에서 게시글 그리드/팔로워/팔로잉을 본다.
 
----
+### 3.3 Post (Feed)
+- 사용자는 1~10장의 이미지를 업로드하고 캡션/해시태그를 입력한다.
+- 사용자는 홈 피드에서 팔로우한 계정의 최신 게시글을 본다(커서 페이지네이션).
+- 사용자는 게시글 상세에서 댓글을 보고 작성한다.
 
-## 4. Core Features & Functionality
+### 3.4 Social
+- 사용자는 다른 사용자를 팔로우/언팔로우한다.
+- 사용자는 게시글에 좋아요/좋아요 취소를 한다.
+- 사용자는 댓글을 작성/삭제한다(본인 댓글만 삭제).
 
-### 4.1 Portfolio Dashboard
+### 3.5 Search & Explore
+- 사용자는 username/표시이름으로 유저를 검색한다.
+- 사용자는 해시태그로 게시글을 탐색한다.
+- Explore는 최근 N일 게시글을 점수 기반으로 정렬하여 그리드로 보여준다.
 
-#### 요약 정보
-- 총 평가금액 (현재 시세 기준)
-- 총 투자금액 (매수 금액 합계)
-- 총 수익/손실 (금액)
-- 총 수익률 (%)
-- 일간 변동 (금액, %)
-
-#### 보유 종목 테이블
-```
-| 종목명 | 종목코드 | 보유수량 | 평균단가 | 현재가 | 평가금액 | 수익률 |
-|--------|----------|----------|----------|--------|----------|--------|
-| 애플   | AAPL     | 10       | $150.00  | $175.00| $1,750   | +16.7% |
-| 삼성전자| 005930.KS| 50       | ₩70,000  | ₩75,000| ₩3,750,000| +7.1% |
-```
-
-### 4.2 Trade Management
-
-#### 거래 유형
-- **매수 (BUY)**: 종목 추가 또는 수량 증가
-- **매도 (SELL)**: 보유 수량 감소
-- **배당 (DIVIDEND)**: 배당금 기록 (선택)
-
-#### 거래 입력 필드
-```python
-class TradeInput:
-    symbol: str          # 종목 코드 (AAPL, 005930.KS)
-    trade_type: str      # BUY, SELL, DIVIDEND
-    quantity: int        # 수량
-    price: float         # 단가
-    trade_date: date     # 거래일
-    memo: str = None     # 메모 (선택)
-```
-
-### 4.3 Stock Information
-
-#### Yahoo Finance에서 조회 가능한 데이터
-```python
-import yfinance as yf
-
-stock = yf.Ticker("AAPL")
-
-# 기본 정보
-stock.info['longName']        # Apple Inc.
-stock.info['sector']          # Technology
-stock.info['marketCap']       # 2,800,000,000,000
-
-# 현재가
-stock.info['currentPrice']    # 175.00
-
-# 과거 시세
-stock.history(period="1y")    # 1년 데이터 (DataFrame)
-
-# 재무 정보
-stock.info['trailingPE']      # PER
-stock.info['dividendYield']   # 배당수익률
-```
-
-### 4.4 Charts & Visualization
-
-#### 포트폴리오 비중 (파이 차트)
-```javascript
-const data = [
-  { name: 'AAPL', value: 35, color: '#8884d8' },
-  { name: '삼성전자', value: 25, color: '#82ca9d' },
-  { name: 'TSLA', value: 20, color: '#ffc658' },
-  { name: '현금', value: 20, color: '#ff8042' },
-];
-```
-
-#### 포트폴리오 가치 변동 (라인 차트)
-```javascript
-const data = [
-  { date: '2024-01', value: 10000000 },
-  { date: '2024-02', value: 10500000 },
-  { date: '2024-03', value: 11200000 },
-  // ...
-];
-```
+### 3.6 Notifications
+- 좋아요/댓글/팔로우 이벤트 발생 시 알림이 생성된다.
+- 사용자는 알림 목록을 조회하고 읽음 처리한다.
 
 ---
 
-## 5. API Design
+## 4. API Design
 
-### 5.1 REST Endpoints
+> **규칙**: 모든 엔드포인트는 trailing slash 없이 통일 (`/api/v1/...`)
 
-> **규칙**: 모든 엔드포인트는 trailing slash 없이 통일 (`/api/v1/users` O, `/api/v1/users/` X)
-
-#### System Endpoints
-```
-GET /health
-- 서버 상태 확인 (Railway 배포 필수)
-- Response: { "status": "healthy" }
-```
-
-#### Portfolio Endpoints
-```
-GET /api/v1/portfolio/summary
-- 포트폴리오 요약 정보
-- Response: { total_value, total_cost, total_return, return_rate, daily_change }
-
-GET /api/v1/portfolio/holdings
-- 보유 종목 목록
-- Response: { holdings: [...], total_count }
-
-GET /api/v1/portfolio/history
-- 포트폴리오 가치 변동 내역
-- Query params: period (1m, 3m, 6m, 1y, all)
-- Response: { history: [{ date, value }, ...] }
-```
-
-#### Trade Endpoints
-```
-GET /api/v1/trades
-- 거래 내역 조회
-- Query params: symbol, start_date, end_date, limit, offset
-- Response: { trades: [...], total, page }
-
-POST /api/v1/trades
-- 거래 추가
-- Body: { symbol, trade_type, quantity, price, trade_date, memo }
-- Response: { id, message: "거래가 추가되었습니다" }
-
-DELETE /api/v1/trades/{trade_id}
-- 거래 삭제
-- Response: { message: "거래가 삭제되었습니다" }
-```
-
-#### Stock Endpoints
-```
-GET /api/v1/stocks/{symbol}
-- 종목 정보 조회
-- Response: { symbol, name, price, change, change_percent, ... }
-
-GET /api/v1/stocks/{symbol}/history
-- 종목 과거 시세
-- Query params: period (1d, 5d, 1m, 3m, 6m, 1y, 5y)
-- Response: { history: [{ date, open, high, low, close, volume }, ...] }
-
-GET /api/v1/stocks/search?q={query}
-- 종목 검색
-- Response: { results: [{ symbol, name, exchange }, ...] }
-```
-
-### 5.2 Response Format
+### 4.1 Response Envelope
 ```json
 {
   "status": "success",
-  "data": { ... },
+  "data": { },
   "error": null,
   "metadata": {
-    "timestamp": "2024-01-15T09:30:00Z",
-    "version": "1.0.0"
+    "timestamp": "2026-02-06T00:00:00Z",
+    "version": "1.0.0",
+    "request_id": "uuid"
   }
 }
 ```
 
-### 5.3 Error Codes
-- `400`: Bad Request (잘못된 종목 코드, 유효하지 않은 수량 등)
-- `404`: Not Found (종목 없음, 거래 없음)
-- `429`: Too Many Requests (API rate limit)
-- `500`: Internal Server Error
-- `503`: Service Unavailable (Yahoo Finance 연결 실패)
+### 4.2 Auth Endpoints
+```
+POST /api/v1/auth/register
+- Body: { email, password, username, display_name? }
+- Response: { user, access_token, refresh_token }
+
+POST /api/v1/auth/login
+- Body: { email_or_username, password }
+- Response: { user, access_token, refresh_token }
+
+POST /api/v1/auth/refresh
+- Body: { refresh_token }
+- Response: { access_token }
+
+POST /api/v1/auth/logout
+- Body: { refresh_token } (서버에서 revoke 처리)
+- Response: { message }
+```
+
+### 4.3 User/Profile Endpoints
+```
+GET  /api/v1/users/me
+PATCH /api/v1/users/me
+- Body: { display_name?, bio?, website?, is_private? }
+
+POST /api/v1/users/me/avatar
+- multipart/form-data: file
+- Response: { avatar_url }
+
+GET  /api/v1/users/{username}
+- Response: { user, stats: { posts, followers, following }, is_following }
+
+POST /api/v1/users/{username}/follow
+DELETE /api/v1/users/{username}/follow
+- 팔로우/언팔로우
+
+GET /api/v1/users/{username}/followers?cursor=&limit=
+GET /api/v1/users/{username}/following?cursor=&limit=
+```
+
+### 4.4 Upload & Media
+```
+POST /api/v1/uploads
+- multipart/form-data: files[]
+- 서버가 리사이즈/썸네일 생성 후 저장
+- Response: { media: [{ id, url, width, height, thumb_url }] }
+```
+
+### 4.5 Posts
+```
+POST /api/v1/posts
+- Body: { media_ids: string[], caption?: string, hashtags?: string[] }
+- Response: { post }
+
+GET  /api/v1/posts/{post_id}
+- Response: { post, media[], author, like_count, comment_count, is_liked }
+
+DELETE /api/v1/posts/{post_id}
+- 본인 게시글만 삭제
+
+GET  /api/v1/feed?cursor=&limit=
+- 팔로우 기반 피드 (최신순)
+- Response: { items: [post_summary...], next_cursor }
+
+GET  /api/v1/users/{username}/posts?cursor=&limit=
+- 프로필 그리드용
+
+GET  /api/v1/explore?cursor=&limit=
+- 인기/탐색 그리드 (단순 랭킹)
+```
+
+### 4.6 Likes
+```
+POST   /api/v1/posts/{post_id}/like
+DELETE /api/v1/posts/{post_id}/like
+
+GET /api/v1/posts/{post_id}/likes?cursor=&limit=
+```
+
+### 4.7 Comments
+```
+GET  /api/v1/posts/{post_id}/comments?cursor=&limit=
+POST /api/v1/posts/{post_id}/comments
+- Body: { content }
+DELETE /api/v1/comments/{comment_id}
+```
+
+### 4.8 Search
+```
+GET /api/v1/search/users?q=&cursor=&limit=
+GET /api/v1/search/hashtags?q=&cursor=&limit=
+GET /api/v1/hashtags/{tag}/posts?cursor=&limit=
+```
+
+### 4.9 Notifications
+```
+GET  /api/v1/notifications?cursor=&limit=
+POST /api/v1/notifications/read
+- Body: { ids: [] } or { all: true }
+```
+
+### 4.10 System
+```
+GET /health
+- Response: { "status": "healthy" }
+```
 
 ---
 
-## 6. Database Schema (SQLite3)
+## 5. Database Schema (SQLAlchemy ORM)
 
-### 6.1 SQLAlchemy Models (스키마 원천)
+> **규칙**: Raw SQL 금지. SQLAlchemy 모델이 스키마의 원천이며 Alembic으로 마이그레이션한다.
 
-> **규칙**: Raw SQL 사용 금지. SQLAlchemy ORM 모델이 DB 스키마의 원천이며, Alembic으로 마이그레이션한다.
+### 5.1 Models (핵심 테이블)
 
 ```python
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
+from sqlalchemy import (
+    Column, String, Integer, DateTime, Boolean, ForeignKey, Text, Index
+)
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from database import Base
+from app.database import Base
 
+def utcnow():
+    return datetime.utcnow()
 
-class Holding(Base):
-    """보유 종목"""
-    __tablename__ = "holdings"
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True)  # uuid str
+    email = Column(String, unique=True, nullable=False, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
 
-    id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String, unique=True, nullable=False, index=True)  # 종목 코드
-    name = Column(String)                        # 종목명
-    quantity = Column(Integer, default=0)         # 보유 수량
-    avg_price = Column(Float, default=0)          # 평균 매수가
-    total_cost = Column(Float, default=0)         # 총 매수 금액
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    display_name = Column(String)
+    bio = Column(Text)
+    avatar_url = Column(String)
+    website = Column(String)
+    is_private = Column(Boolean, default=False)
 
-    transactions = relationship("Transaction", back_populates="holding")
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
+class Post(Base):
+    __tablename__ = "posts"
+    id = Column(String, primary_key=True)  # uuid str
+    author_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    caption = Column(Text)
 
-class Transaction(Base):
-    """거래 내역"""
-    __tablename__ = "transactions"
+    created_at = Column(DateTime, default=utcnow, index=True)
+    deleted_at = Column(DateTime)
 
-    id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String, ForeignKey("holdings.symbol"), nullable=False, index=True)
-    trade_type = Column(String, nullable=False)   # BUY, SELL, DIVIDEND
-    quantity = Column(Integer, nullable=False)
-    price = Column(Float, nullable=False)
-    total_amount = Column(Float, nullable=False)
-    trade_date = Column(DateTime, nullable=False, index=True)
-    memo = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    author = relationship("User")
+    media = relationship("Media", back_populates="post", cascade="all,delete-orphan")
 
-    holding = relationship("Holding", back_populates="transactions")
+class Media(Base):
+    __tablename__ = "media"
+    id = Column(String, primary_key=True)  # uuid str
+    post_id = Column(String, ForeignKey("posts.id"), index=True)
+    url = Column(String, nullable=False)
+    thumb_url = Column(String)
+    width = Column(Integer)
+    height = Column(Integer)
+    mime_type = Column(String)
+    order = Column(Integer, default=0)  # 이미지 순서 (0-based)
+    created_at = Column(DateTime, default=utcnow)
 
+    post = relationship("Post", back_populates="media")
 
-class PriceCache(Base):
-    """시세 캐시"""
-    __tablename__ = "price_cache"
+class Follow(Base):
+    __tablename__ = "follows"
+    follower_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    followee_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    created_at = Column(DateTime, default=utcnow)
 
-    symbol = Column(String, primary_key=True)
-    price = Column(Float, nullable=False)
-    change = Column(Float)
-    change_percent = Column(Float)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    __table_args__ = (
+        Index("ix_followee", "followee_id"),
+    )
 
+class Like(Base):
+    __tablename__ = "likes"
+    user_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    post_id = Column(String, ForeignKey("posts.id"), primary_key=True)
+    created_at = Column(DateTime, default=utcnow)
 
-class PortfolioHistory(Base):
-    """포트폴리오 히스토리"""
-    __tablename__ = "portfolio_history"
+    __table_args__ = (
+        Index("ix_like_post", "post_id"),
+    )
 
-    id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, nullable=False, unique=True, index=True)
-    total_value = Column(Float, nullable=False)
-    total_cost = Column(Float, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-```
+class Comment(Base):
+    __tablename__ = "comments"
+    id = Column(String, primary_key=True)  # uuid str
+    post_id = Column(String, ForeignKey("posts.id"), index=True)
+    author_id = Column(String, ForeignKey("users.id"), index=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow, index=True)
+    deleted_at = Column(DateTime)
 
-### 6.2 Pydantic Schemas (API 요청/응답)
+class Hashtag(Base):
+    __tablename__ = "hashtags"
+    tag = Column(String, primary_key=True)   # lowercased
+    created_at = Column(DateTime, default=utcnow)
 
-> **규칙**: DB 스키마 변경 시 Pydantic 스키마도 반드시 함께 업데이트한다.
+class PostHashtag(Base):
+    __tablename__ = "post_hashtags"
+    post_id = Column(String, ForeignKey("posts.id"), primary_key=True)
+    tag = Column(String, ForeignKey("hashtags.tag"), primary_key=True)
+    created_at = Column(DateTime, default=utcnow)
 
-```python
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional
+    __table_args__ = (Index("ix_tag", "tag"),)
 
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(String, primary_key=True)  # uuid str
+    user_id = Column(String, ForeignKey("users.id"), index=True)  # receiver
+    actor_id = Column(String, ForeignKey("users.id"))
+    type = Column(String, nullable=False)  # FOLLOW, LIKE, COMMENT
+    post_id = Column(String, ForeignKey("posts.id"))
+    comment_id = Column(String, ForeignKey("comments.id"))
 
-# --- Trade ---
-class TradeCreate(BaseModel):
-    symbol: str
-    trade_type: str        # BUY, SELL, DIVIDEND
-    quantity: int
-    price: float
-    trade_date: datetime
-    memo: Optional[str] = None
-
-class TradeResponse(BaseModel):
-    id: int
-    symbol: str
-    trade_type: str
-    quantity: int
-    price: float
-    total_amount: float
-    trade_date: datetime
-    memo: Optional[str]
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-# --- Holding ---
-class HoldingResponse(BaseModel):
-    id: int
-    symbol: str
-    name: Optional[str]
-    quantity: int
-    avg_price: float
-    total_cost: float
-    current_price: float       # 실시간 조회
-    market_value: float        # quantity * current_price
-    return_amount: float       # market_value - total_cost
-    return_rate: float         # return_amount / total_cost * 100
-
-    class Config:
-        from_attributes = True
-
-
-# --- Portfolio ---
-class PortfolioSummary(BaseModel):
-    total_value: float
-    total_cost: float
-    total_return: float
-    return_rate: float
-    daily_change: float
-    daily_change_percent: float
+    is_read = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 ```
 
 ---
 
-## 7. Design Reference
+## 6. Business Rules (정책/규칙)
 
-### 7.0 디자인 레퍼런스 이미지 (IMPORTANT)
+### 6.1 권한
+- 게시글/댓글 삭제: 작성자만 가능
+- 피드: “내가 팔로우하는 사람 + 내 게시글”
+- 비공개 계정(is_private):
+  - 팔로우 요청/승인 기능은 MVP에서는 선택(기본은 공개 계정)
+  - MVP 범위를 단순화하려면 is_private는 저장만 하고 동작은 Phase 4로 미룸
 
-> **디자인 시작 전 필수 확인**: `design/` 폴더에 레퍼런스 이미지가 있는지 확인하세요.
+### 6.2 삭제 시 연관 데이터 처리
+- 게시글 삭제(soft delete) → 연관 좋아요/댓글/해시태그 연결/알림은 조회에서 제외(deleted_at IS NULL 필터)
+- 댓글 삭제(soft delete) → 연관 알림은 조회에서 제외
+- 계정 삭제는 MVP 범위 외
 
-```
-design/
-├── reference/           # 디자인 레퍼런스 이미지
-│   ├── dashboard.png    # 대시보드 레이아웃
-│   ├── mobile.png       # 모바일 화면
-│   ├── components.png   # 컴포넌트 스타일
-│   └── colors.png       # 색상 팔레트
-└── README.md            # 디자인 가이드 설명
-```
+### 6.3 피드 페이지네이션
+- Cursor 기반: `cursor = created_at + id` 조합(중복 방지)
+- limit 기본 20, 최대 50
 
-**레퍼런스 이미지 사용 방법**:
-1. `design/reference/` 폴더에 원하는 디자인 이미지를 넣어주세요
-2. Claude Code가 이미지를 분석하여 스타일을 적용합니다
-3. 이미지가 없으면 Claude Code가 디자인 방향을 질문합니다
+### 6.4 Explore 랭킹(단순)
+- score = (like_count * 3) + (comment_count * 5) - time_decay
+- time_decay = hours_since_created
+- 최근 7일 게시글만 대상으로 함
 
-**지원 이미지 형식**: PNG, JPG, JPEG, WebP
+### 6.5 해시태그 파싱
+- 캡션에서 `#tag` 정규식 추출 + API 입력 hashtags 병합
+- 소문자 정규화, 길이 제한(예: 2~30)
 
-### 7.1 UI/UX Design Guidelines
-
-**디자인 컨셉**: 깔끔하고 직관적인 금융 대시보드
-
-#### 색상 팔레트
-- **Primary**: Blue (#3B82F6) - 신뢰, 안정
-- **Success**: Green (#10B981) - 수익, 상승
-- **Danger**: Red (#EF4444) - 손실, 하락
-- **Background**: Gray (#F9FAFB)
-- **Card**: White (#FFFFFF)
-
-#### 수익/손실 색상 규칙
-```jsx
-// 수익: 초록색
-<span className="text-green-500">+16.7%</span>
-
-// 손실: 빨간색
-<span className="text-red-500">-5.2%</span>
-
-// 변동 없음: 회색
-<span className="text-gray-500">0.0%</span>
-```
-
-#### 카드 레이아웃
-```jsx
-// 대시보드 요약 카드
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-  <Card>
-    <CardTitle>총 평가금액</CardTitle>
-    <CardValue>₩15,230,000</CardValue>
-    <CardChange positive>+₩1,230,000 (8.8%)</CardChange>
-  </Card>
-  // ...
-</div>
-```
-
-### 7.2 Mobile-First Design
-- 모바일에서 카드는 1열 배치
-- 테이블은 가로 스크롤 또는 카드 형태로 변환
-- 터치 타깃 최소 44x44px
+### 6.6 업로드 제한
+- 1게시글 최대 10장
+- 이미지 파일: jpg/png/webp, 최대 10MB/장
+- 서버에서 1080px 리사이즈 + 썸네일 생성
 
 ---
 
-## 8. Frontend Routes & Components
+## 7. Caching & Performance (선택)
 
-### 8.0 Page Routes
+- 좋아요/댓글 카운트는 **집계 테이블** 또는 **캐시 컬럼**으로 최적화 가능
+  - MVP: 조회 시 COUNT(인덱스 필수)
+  - 확장: posts.like_count, posts.comment_count denormalization + 트랜잭션 업데이트
+- Redis가 있으면:
+  - feed cursor 캐시
+  - notification badge 캐시
+  - rate limit 저장소로 활용
+
+---
+
+## 8. Frontend Routes & UX
+
+### 8.1 Routes
 
 | URL | 페이지 | 설명 |
 |-----|--------|------|
-| `/` | Dashboard | 포트폴리오 요약, 보유 종목, 차트 |
-| `/trades` | Trade List | 거래 내역 목록 |
-| `/trades/new` | Trade Form | 새 거래 추가 |
-| `/stocks/:symbol` | Stock Detail | 종목 상세 정보, 차트, 거래 내역 |
+| `/` | Feed | 홈 피드 |
+| `/explore` | Explore | 탐색 탭 |
+| `/search` | Search | 유저/해시태그 검색 |
+| `/p/:postId` | Post Detail | 게시글 상세 |
+| `/:username` | Profile | 프로필 |
+| `/upload` | Upload | 업로드 |
+| `/notifications` | Notifications | 알림 |
+| `/login` | Login | 로그인 |
+| `/register` | Register | 회원가입 |
 
-> **규칙**: 새 페이지는 반드시 새 URL로 생성. 모달/조건부 렌더링으로 페이지를 대체하지 않는다.
-
-### 8.1 Frontend Components
-
-#### Dashboard Summary
-```jsx
-function DashboardSummary({ portfolio }) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
-      <SummaryCard
-        title="총 평가금액"
-        value={formatCurrency(portfolio.totalValue)}
-        change={portfolio.dailyChange}
-      />
-      <SummaryCard
-        title="총 투자금액"
-        value={formatCurrency(portfolio.totalCost)}
-      />
-      <SummaryCard
-        title="총 수익"
-        value={formatCurrency(portfolio.totalReturn)}
-        change={portfolio.returnRate}
-      />
-      <SummaryCard
-        title="일간 변동"
-        value={formatCurrency(portfolio.dailyChangeAmount)}
-        change={portfolio.dailyChangePercent}
-      />
-    </div>
-  );
-}
-```
-
-#### Holdings Table
-```jsx
-function HoldingsTable({ holdings }) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>종목</TableHead>
-          <TableHead>보유수량</TableHead>
-          <TableHead>평균단가</TableHead>
-          <TableHead>현재가</TableHead>
-          <TableHead>평가금액</TableHead>
-          <TableHead>수익률</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {holdings.map((holding) => (
-          <TableRow key={holding.symbol}>
-            <TableCell>{holding.name}</TableCell>
-            <TableCell>{holding.quantity}</TableCell>
-            <TableCell>{formatCurrency(holding.avgPrice)}</TableCell>
-            <TableCell>{formatCurrency(holding.currentPrice)}</TableCell>
-            <TableCell>{formatCurrency(holding.marketValue)}</TableCell>
-            <TableCell className={holding.returnRate >= 0 ? 'text-green-500' : 'text-red-500'}>
-              {formatPercent(holding.returnRate)}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-```
-
-#### Trade Form
-```jsx
-function TradeForm({ onSubmit }) {
-  const [formData, setFormData] = useState({
-    symbol: '',
-    tradeType: 'BUY',
-    quantity: '',
-    price: '',
-    tradeDate: new Date().toISOString().split('T')[0],
-    memo: ''
-  });
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <Input
-        label="종목 코드"
-        placeholder="AAPL, 005930.KS"
-        value={formData.symbol}
-        onChange={(e) => setFormData({...formData, symbol: e.target.value})}
-      />
-      <Select
-        label="거래 유형"
-        value={formData.tradeType}
-        options={[
-          { value: 'BUY', label: '매수' },
-          { value: 'SELL', label: '매도' },
-        ]}
-      />
-      <Input label="수량" type="number" />
-      <Input label="단가" type="number" />
-      <Input label="거래일" type="date" />
-      <Button type="submit">거래 추가</Button>
-    </form>
-  );
-}
-```
+### 8.2 UI/UX Guidelines
+- Mobile-first, 하단 탭(Feed/Explore/Upload/Notifications/Profile)
+- 피드 카드 구성: 상단(작성자) + 이미지 + 액션(Like/Comment/Share) + 캡션 + 댓글 일부
+- Optimistic UI: 좋아요/팔로우/댓글은 즉시 반영 후 실패 시 롤백
+- Skeleton loading + 빈 상태(empty state) 제공
 
 ---
 
-## 9. Technical Considerations
+## 9. Security Considerations
 
-### 9.1 Yahoo Finance (yfinance) 사용법
-
-```python
-import yfinance as yf
-
-# 단일 종목 조회
-stock = yf.Ticker("AAPL")
-current_price = stock.info.get('currentPrice') or stock.info.get('regularMarketPrice')
-
-# 한국 주식 조회 (코스피: .KS, 코스닥: .KQ)
-samsung = yf.Ticker("005930.KS")
-price = samsung.info.get('currentPrice')
-
-# 여러 종목 한번에 조회
-tickers = yf.Tickers("AAPL MSFT GOOGL")
-for ticker in tickers.tickers.values():
-    print(ticker.info['currentPrice'])
-
-# 과거 데이터 조회
-history = stock.history(period="1y")  # 1년
-# period: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
-```
-
-### 9.2 Rate Limiting 처리
-
-```python
-import time
-from functools import wraps
-
-def rate_limit(calls_per_second=1):
-    """Yahoo Finance API 호출 속도 제한"""
-    min_interval = 1.0 / calls_per_second
-    last_called = [0.0]
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            elapsed = time.time() - last_called[0]
-            if elapsed < min_interval:
-                time.sleep(min_interval - elapsed)
-            result = func(*args, **kwargs)
-            last_called[0] = time.time()
-            return result
-        return wrapper
-    return decorator
-
-@rate_limit(calls_per_second=1)
-def get_stock_price(symbol: str):
-    stock = yf.Ticker(symbol)
-    return stock.info.get('currentPrice')
-```
-
-### 9.3 Caching Strategy
-
-```python
-from datetime import datetime, timedelta
-
-CACHE_TTL = 60  # 60초
-
-def get_price_with_cache(symbol: str, db: Session):
-    # 캐시 확인
-    cached = db.query(PriceCache).filter_by(symbol=symbol).first()
-
-    if cached:
-        updated = datetime.fromisoformat(cached.updated_at)
-        if datetime.now() - updated < timedelta(seconds=CACHE_TTL):
-            return cached.price
-
-    # 캐시 미스 또는 만료: API 호출
-    stock = yf.Ticker(symbol)
-    price = stock.info.get('currentPrice')
-
-    # 캐시 업데이트
-    if cached:
-        cached.price = price
-        cached.updated_at = datetime.now().isoformat()
-    else:
-        db.add(PriceCache(symbol=symbol, price=price))
-
-    db.commit()
-    return price
-```
-
-### 9.4 Database Migration (Alembic)
-
-```bash
-# 초기 설정
-alembic init alembic
-
-# 모델 변경 후 마이그레이션 생성
-alembic revision --autogenerate -m "설명"
-
-# 마이그레이션 적용
-alembic upgrade head
-```
-
-> **규칙**: 모델 변경 후 반드시 마이그레이션 파일을 생성하고 Git에 커밋한다.
-
-### 9.5 Error Handling
-
-```python
-class StockNotFoundError(Exception):
-    pass
-
-class APIRateLimitError(Exception):
-    pass
-
-def get_stock_info(symbol: str):
-    try:
-        stock = yf.Ticker(symbol)
-        info = stock.info
-
-        # 유효한 종목인지 확인
-        if not info or 'regularMarketPrice' not in info:
-            raise StockNotFoundError(f"종목을 찾을 수 없습니다: {symbol}")
-
-        return info
-
-    except Exception as e:
-        if "Too Many Requests" in str(e):
-            raise APIRateLimitError("API 호출 한도 초과. 잠시 후 다시 시도하세요.")
-        raise
-```
+- 비밀번호: bcrypt 해싱, 최소 8자, rate limit 적용
+- JWT:
+  - Access token: 15분
+  - Refresh token: 14~30일, 서버 저장 및 revoke 지원
+- 업로드 보안:
+  - MIME sniffing + 확장자 검사
+  - 이미지 디코딩(Pillow)으로 유효성 확인
+  - EXIF 제거(선택)
+- CORS: 프론트 도메인만 허용(운영)
+- Rate Limit: `slowapi` 사용 (로그인/검색/댓글/업로드에 적용)
 
 ---
 
 ## 10. Development Phases
 
 ### Phase 1: Foundation
-- [ ] 프로젝트 초기 설정 (FastAPI + React)
-- [ ] SQLite3 데이터베이스 스키마 생성
-- [ ] yfinance 연동 테스트
-- [ ] 기본 API 엔드포인트 구현
+- [ ] FastAPI + React(Vite) 프로젝트 스캐폴딩
+- [ ] Auth(JWT) + User 모델 + 마이그레이션
+- [ ] 기본 레이아웃/라우팅/탭바
 
-### Phase 2: Core Features
-- [ ] 거래 추가/조회/삭제 API
-- [ ] 포트폴리오 계산 로직
-- [ ] 시세 캐싱 구현
-- [ ] Holdings 자동 업데이트
+### Phase 2: Posts (핵심)
+- [ ] Upload API + 스토리지 연동(S3/로컬)
+- [ ] Post CRUD + 프로필 그리드
+- [ ] Feed(팔로우 기반) + Post Detail
 
-### Phase 3: Frontend
-- [ ] Dashboard Summary 컴포넌트
-- [ ] Holdings Table 컴포넌트
-- [ ] Trade Form 컴포넌트
-- [ ] 차트 (Recharts)
+### Phase 3: Social
+- [ ] Follow/Unfollow
+- [ ] Like/Unlike
+- [ ] Comment CRUD
+- [ ] Search(Users/Hashtags) + Hashtag Page
 
-### Phase 4: Enhancement
-- [ ] 종목 검색 기능
-- [ ] 종목 상세 페이지
-- [ ] 포트폴리오 히스토리
-- [ ] 반응형 디자인
+### Phase 4: Notifications + Polish
+- [ ] Notification 생성/조회/읽음 처리
+- [ ] Explore 랭킹 및 성능 개선
 
 ---
 
 ## 11. Project Structure
 
 ```
-stock-portfolio-tracker/
-├── frontend/                # React 프론트엔드
+instagram-mvp/
+├── frontend/
 │   ├── src/
-│   │   ├── components/     # 재사용 컴포넌트
-│   │   │   ├── DashboardSummary.jsx
-│   │   │   ├── HoldingsTable.jsx
-│   │   │   ├── TradeForm.jsx
-│   │   │   └── Charts.jsx
-│   │   ├── pages/          # 페이지 컴포넌트 (라우트 단위)
-│   │   │   ├── DashboardPage.jsx
-│   │   │   ├── TradeListPage.jsx
-│   │   │   ├── TradeNewPage.jsx
-│   │   │   └── StockDetailPage.jsx
-│   │   ├── api/            # Axios API 클라이언트
-│   │   ├── utils/          # 유틸리티 (포맷터 등)
-│   │   └── App.jsx
+│   │   ├── api/                # fetch/axios clients
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── store/
+│   │   ├── styles/
+│   │   ├── App.tsx
+│   │   └── main.tsx
 │   ├── package.json
-│   └── vite.config.js
+│   └── vite.config.ts
 │
-├── backend/                 # FastAPI 백엔드
+├── backend/
 │   ├── app/
-│   │   ├── api/            # API 라우터
-│   │   │   ├── portfolio.py
-│   │   │   ├── trades.py
-│   │   │   └── stocks.py
-│   │   ├── models/         # SQLAlchemy 모델
-│   │   ├── schemas/        # Pydantic 스키마
-│   │   ├── services/       # 비즈니스 로직
-│   │   │   ├── portfolio_service.py
-│   │   │   └── stock_service.py
-│   │   ├── repositories/   # 데이터 접근 계층
-│   │   ├── utils/          # 유틸리티
-│   │   ├── database.py     # DB 연결
-│   │   └── main.py         # FastAPI 앱
-│   ├── alembic/             # DB 마이그레이션
+│   │   ├── api/                # routers
+│   │   ├── core/               # config, security, logging
+│   │   ├── models/             # SQLAlchemy models
+│   │   ├── schemas/            # Pydantic schemas
+│   │   ├── services/           # business logic
+│   │   ├── repositories/       # db access layer
+│   │   ├── storage/            # S3/local storage service
+│   │   ├── database.py
+│   │   └── main.py
+│   ├── alembic/
 │   ├── tests/
 │   └── requirements.txt
 │
-├── .claude/                 # Claude 설정
+├── design/
+│   ├── reference/
+│   └── README.md
 ├── scripts/
-│   ├── install.py           # 의존성 설치 스크립트
-│   ├── dev.py               # 개발 서버 실행 스크립트
-│   └── test.py              # 테스트 실행 스크립트
-├── SPEC.md                  # 이 문서
-├── README.md
 ├── Dockerfile
-└── railway.toml
+├── docker-compose.yml
+├── railway.toml
+├── SPEC.md
+└── README.md
 ```
 
 ---
@@ -930,101 +614,64 @@ stock-portfolio-tracker/
 # .env.example
 
 # Backend
-DATABASE_URL=sqlite:///./portfolio.db
-LOG_LEVEL=INFO
 ENVIRONMENT=development
+LOG_LEVEL=INFO
+DATABASE_URL=sqlite:///./app.db   # dev
+# DATABASE_URL=postgresql+psycopg://...  # prod
+
+JWT_SECRET_KEY=change-me
+JWT_ACCESS_EXPIRES_MIN=15
+JWT_REFRESH_EXPIRES_DAYS=30
+
+# Storage (choose one)
+STORAGE_DRIVER=local           # local | s3
+LOCAL_STORAGE_PATH=./storage
+
+S3_ENDPOINT_URL=               # for R2/MinIO optional
+S3_REGION=auto
+S3_BUCKET=instagram-mvp
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+CDN_BASE_URL=                  # public base url for media
 
 # Frontend
 VITE_API_URL=http://localhost:8000/api/v1
-VITE_APP_NAME=Stock Portfolio Tracker
-
-# Railway (production)
-# DATABASE_URL=postgresql://... (Railway 자동 제공)
-# PORT=8000 (Railway 자동 제공)
+VITE_APP_NAME=Instagram-Style MVP
 ```
 
 ---
 
 ## 13. Testing Strategy
 
-### 13.1 Backend 테스트 시나리오
+### 13.1 Backend 테스트
+- Auth: register/login/refresh, 토큰 만료/리프레시
+- Upload: 파일 타입/크기 제한, 썸네일 생성 여부
+- Feed: 팔로우 관계에 따른 피드 포함/제외
+- Like: 중복 좋아요 방지(uq_like), 카운트 정확성
+- Comment: 작성/삭제 권한
+- Search: 유저/해시태그 검색 정확성
+- Notifications: 이벤트 발생 시 생성, 읽음 처리
 
-| 영역 | 테스트 항목 | 검증 내용 |
-|------|-----------|----------|
-| Portfolio | 포트폴리오 가치 계산 | 보유 종목 × 현재가 합산 정확성 |
-| Portfolio | 수익률 계산 | (현재가 - 평균단가) / 평균단가 × 100 |
-| Trade | 매수 거래 추가 | holdings 수량/평균단가 업데이트 |
-| Trade | 매도 거래 추가 | 보유 수량 초과 매도 시 에러 |
-| Trade | 거래 삭제 | holdings 재계산 |
-| Stock | 시세 조회 | yfinance 모킹, 캐시 TTL 검증 |
-| Stock | 잘못된 종목 코드 | StockNotFoundError 발생 |
-| API | /health 엔드포인트 | 200 OK 응답 |
-
-```python
-# tests/test_portfolio.py
-def test_calculate_portfolio_value():
-    """포트폴리오 총 가치와 총 비용 계산"""
-    holdings = [
-        {"symbol": "AAPL", "quantity": 10, "avg_price": 150},
-        {"symbol": "GOOGL", "quantity": 5, "avg_price": 2800},
-    ]
-    prices = {"AAPL": 175, "GOOGL": 2900}
-
-    result = calculate_portfolio_value(holdings, prices)
-
-    assert result["total_value"] == 10 * 175 + 5 * 2900
-    assert result["total_cost"] == 10 * 150 + 5 * 2800
-
-
-def test_add_buy_trade_updates_holding(db_session):
-    """매수 거래 추가 시 보유 종목의 수량과 평균단가가 업데이트된다"""
-    # Arrange: 기존 보유 종목 (10주, 평균 $150)
-    # Act: 10주 추가 매수 ($200)
-    # Assert: 20주, 평균 $175
-
-
-def test_sell_exceeding_quantity_raises_error(db_session):
-    """보유 수량보다 많은 매도 시 에러가 발생한다"""
-    # Arrange: 10주 보유
-    # Act & Assert: 15주 매도 시도 → ValueError
-```
-
-### 13.2 Frontend 테스트 시나리오
-
-| 영역 | 테스트 항목 | 검증 내용 |
-|------|-----------|----------|
-| TradeForm | 필수 필드 검증 | 종목코드/수량/단가 비어있으면 제출 불가 |
-| TradeForm | 정상 제출 | API 호출 + 성공 메시지 표시 |
-| HoldingsTable | 데이터 렌더링 | 종목 목록이 테이블에 표시 |
-| HoldingsTable | 수익률 색상 | 양수=초록, 음수=빨강 |
-| Dashboard | API 에러 처리 | 에러 시 에러 메시지 표시 (더미값 X) |
-
-```javascript
-// TradeForm.test.jsx
-describe('TradeForm', () => {
-  it('종목코드 없이 제출하면 에러 메시지를 표시한다', () => {});
-  it('정상 입력 후 제출하면 API를 호출하고 성공 메시지를 표시한다', () => {});
-});
-
-// HoldingsTable.test.jsx
-describe('HoldingsTable', () => {
-  it('보유 종목 목록을 렌더링한다', () => {});
-  it('수익률이 양수면 초록색, 음수면 빨간색으로 표시한다', () => {});
-});
-```
+### 13.2 Frontend 테스트
+- 로그인 폼 검증
+- 피드 로딩/무한스크롤
+- 좋아요 optimistic UI
+- 댓글 작성/삭제
+- 프로필 팔로우 버튼 상태 전환
+- 업로드 흐름(파일 선택→미리보기→등록)
 
 ---
 
 ## 14. Success Metrics
 
-- [ ] 종목 시세 조회 성공률 > 99%
-- [ ] API 응답 시간 < 500ms
-- [ ] 포트폴리오 계산 정확도 100%
-- [ ] 모바일 UI 반응형 지원
-- [ ] 에러 발생 시 명확한 메시지 표시
+- [ ] 피드 API p95 응답시간 < 500ms
+- [ ] 업로드 성공률 > 99%
+- [ ] 좋아요/댓글 액션 실패율 < 1%
+- [ ] 모바일 기본 UX(탭/스크롤/터치) 문제 없음
+- [ ] 권한/보안(타인 삭제/비인가 접근) 0건
 
 ---
 
-**Document Version**: 3.0
-**Template Type**: Stock Portfolio Tracker
+**Document Version**: 1.0  
+**Template Type**: Instagram-Style MVP  
 **용도**: 초기 구현 청사진 (구현 후에는 코드가 Source of Truth)
