@@ -10,11 +10,12 @@ AI Coding Template - Installation Script (Cross-platform)
 3. Python 확인/자동 설치
 4. Git 확인/자동 설치 + git config 확인
 5. MCP CLI 도구 설치 (uvx, markitdown-mcp)
-6. Python 가상환경 생성
-7. Backend 의존성 설치
-8. Frontend 의존성 설치
-9. 환경 변수 파일 생성
-10. 최종 상태 테이블 출력
+6. MCP 서버 환경변수 설정 (대화형 입력)
+7. Python 가상환경 생성
+8. Backend 의존성 설치
+9. Frontend 의존성 설치
+10. 환경 변수 파일 생성
+11. 최종 상태 테이블 출력
 """
 
 import os
@@ -242,6 +243,134 @@ def install_mcp_tools(pip_cmd):
 
     return results
 
+def get_shell_profile():
+    """현재 사용자의 shell profile 경로 반환"""
+    os_type = get_os()
+    home = Path.home()
+
+    if os_type == "windows":
+        # Windows는 shell profile 대신 setx로 환경변수 설정
+        return None
+
+    # 사용자의 현재 shell 확인
+    shell = os.environ.get("SHELL", "")
+    if "zsh" in shell:
+        profile = home / ".zshrc"
+    elif "bash" in shell:
+        # macOS의 경우 .bash_profile, Linux는 .bashrc
+        if os_type == "macos":
+            profile = home / ".bash_profile"
+        else:
+            profile = home / ".bashrc"
+    else:
+        # fallback
+        profile = home / ".profile"
+
+    return profile
+
+def ask_env_variable(var_name, description, hint):
+    """사용자에게 환경변수 값을 대화형으로 입력받기.
+    반환: 입력된 값 또는 None(skip)
+    """
+    print()
+    print(f"  {Colors.BOLD}{description}{Colors.RESET}")
+    print(f"  {hint}")
+    print(f"  (건너뛰려면 Enter를 누르세요)")
+    print()
+    try:
+        value = input(f"  {var_name}= ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+
+    if not value:
+        return None
+    return value
+
+def save_env_to_profile(var_name, value, profile_path):
+    """환경변수를 shell profile에 저장"""
+    export_line = f'export {var_name}="{value}"'
+
+    if profile_path is None:
+        # Windows: setx로 설정
+        result = run_command(f'setx {var_name} "{value}"', check=False)
+        if result.returncode == 0:
+            success(f"{var_name}을(를) 시스템 환경변수에 저장했습니다.")
+            return True
+        else:
+            error(f"{var_name} 저장 실패")
+            return False
+
+    # 이미 존재하는지 확인
+    if profile_path.exists():
+        content = profile_path.read_text()
+        if f"export {var_name}=" in content:
+            # 기존 값 업데이트
+            lines = content.splitlines()
+            new_lines = []
+            for line in lines:
+                if line.strip().startswith(f"export {var_name}="):
+                    new_lines.append(export_line)
+                else:
+                    new_lines.append(line)
+            profile_path.write_text("\n".join(new_lines) + "\n")
+            success(f"{var_name}을(를) {profile_path}에 업데이트했습니다.")
+            return True
+
+    # 새로 추가
+    with open(profile_path, "a") as f:
+        f.write(f"\n# MCP Server - {var_name}\n")
+        f.write(f"{export_line}\n")
+
+    success(f"{var_name}을(를) {profile_path}에 저장했습니다.")
+    return True
+
+def setup_mcp_env_variables():
+    """MCP 서버에 필요한 환경변수를 대화형으로 설정"""
+    env_vars = [
+        {
+            "name": "CONTEXT7_API_KEY",
+            "description": "Context7 API Key (최신 문서 조회용 MCP 서버)",
+            "hint": "발급: https://context7.com",
+        },
+        {
+            "name": "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "description": "GitHub Personal Access Token (GitHub MCP 서버)",
+            "hint": "발급: GitHub > Settings > Developer settings > Personal access tokens",
+        },
+    ]
+
+    profile_path = get_shell_profile()
+    results = {}
+
+    for var in env_vars:
+        name = var["name"]
+        current_value = os.environ.get(name, "")
+
+        if current_value:
+            masked = current_value[:4] + "***" if len(current_value) > 4 else "***"
+            success(f"{name} 이미 설정됨 ({masked})")
+            results[name] = "OK"
+            continue
+
+        value = ask_env_variable(name, var["description"], var["hint"])
+
+        if value:
+            saved = save_env_to_profile(name, value, profile_path)
+            # 현재 프로세스에도 반영
+            os.environ[name] = value
+            results[name] = "OK" if saved else "FAIL"
+        else:
+            warning(f"{name}을(를) 건너뛰었습니다. 해당 MCP 서버가 동작하지 않을 수 있습니다.")
+            results[name] = "SKIP"
+
+    if profile_path and any(r == "OK" for r in results.values()):
+        print()
+        info(f"새 터미널에서 환경변수가 적용됩니다.")
+        info(f"현재 터미널에 바로 적용하려면: source {profile_path}")
+
+    return results
+
 def check_git_config():
     """git config user.name/email 확인 및 경고"""
     if not command_exists("git"):
@@ -420,9 +549,20 @@ def main():
     print()
 
     # ============================================
-    # 5. Python 가상환경 생성
+    # 5. MCP 서버 환경변수 설정
     # ============================================
-    print("5. Python 가상환경 생성 중...")
+    print("5. MCP 서버 환경변수 확인 중...")
+
+    env_results = setup_mcp_env_variables()
+    for name, status in env_results.items():
+        status_results[name] = (status, "-")
+
+    print()
+
+    # ============================================
+    # 6. Python 가상환경 생성
+    # ============================================
+    print("6. Python 가상환경 생성 중...")
 
     venv_path = Path("venv")
     if not venv_path.exists():
@@ -443,9 +583,9 @@ def main():
     print()
 
     # ============================================
-    # 6. Backend 의존성 설치
+    # 7. Backend 의존성 설치
     # ============================================
-    print("6. Backend 의존성 설치 중...")
+    print("7. Backend 의존성 설치 중...")
 
     venv_pip = get_venv_pip()
     requirements_path = Path("backend/requirements.txt")
@@ -469,9 +609,9 @@ def main():
     print()
 
     # ============================================
-    # 7. Frontend 의존성 설치
+    # 8. Frontend 의존성 설치
     # ============================================
-    print("7. Frontend 의존성 설치 중...")
+    print("8. Frontend 의존성 설치 중...")
 
     package_json = Path("frontend/package.json")
     if package_json.exists():
@@ -492,9 +632,9 @@ def main():
     print()
 
     # ============================================
-    # 8. 환경 변수 파일 생성
+    # 9. 환경 변수 파일 생성
     # ============================================
-    print("8. 환경 변수 파일 확인 중...")
+    print("9. 환경 변수 파일 확인 중...")
 
     env_file = Path(".env")
     env_example = Path(".env.example")
@@ -515,7 +655,7 @@ def main():
     print()
 
     # ============================================
-    # 9. 최종 상태 테이블 출력
+    # 10. 최종 상태 테이블 출력
     # ============================================
     print("=" * 50)
     print_status_table(status_results)

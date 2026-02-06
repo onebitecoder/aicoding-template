@@ -50,29 +50,29 @@
 ### 프로젝트 구현 요청 시 전체 실행 순서
 
 ```
-[Step 0] 시스템 필수 도구 확인 및 설치   ← 가장 먼저!
-[Step 0.5] MCP 서버 환경 확인 및 설치
-[Step 1] .git 삭제 (Git 초기화)
-[Step 2] SPEC.md 검토 및 스펙 구체화
-[Step 3] 필수 설정값 인터뷰
-[Step 4] Plan Mode로 구현 계획 수립
-[Step 5] 프로젝트 파일 생성/수정
-[Step 6] 의존성 설치 (install.py)
-[Step 7] git init + 초기 커밋
+[Step 1] 시스템 필수 도구 확인 및 설치   ← 가장 먼저!
+[Step 2] MCP 서버 환경 확인 및 설치
+[Step 3] .git 삭제 (Git 초기화)
+[Step 4] SPEC.md 검토 및 스펙 구체화
+[Step 5] 필수 설정값 인터뷰
+[Step 6] Plan Mode로 구현 계획 수립
+[Step 7] 프로젝트 파일 생성/수정
+[Step 8] 의존성 설치 (install.py)
+[Step 9] git init + 초기 커밋
 ```
 
 ---
 
-### Step 0: 시스템 필수 도구 확인 및 설치
+### Step 1: 시스템 필수 도구 확인 및 설치
 
-#### 0-1. OS 감지
+#### 1-1. OS 감지
 
 ```bash
 uname -s   # Darwin(macOS), Linux
 # Windows는 platform.system()으로 확인
 ```
 
-#### 0-2. 필수 도구 설치 확인
+#### 1-2. 필수 도구 설치 확인
 
 아래 도구들이 **모두 설치되어 있어야** 프로젝트를 시작할 수 있다:
 
@@ -83,7 +83,7 @@ which node && node -v
 which npm && npm -v
 ```
 
-#### 0-3. 미설치 도구 자동 설치
+#### 1-3. 미설치 도구 자동 설치
 
 **미설치 도구가 발견되면 OS에 맞는 패키지 매니저로 자동 설치한다.**
 
@@ -123,7 +123,7 @@ node -v
 npm -v
 ```
 
-#### 0-4. 시스템 도구 상태 테이블 출력
+#### 1-4. 시스템 도구 상태 테이블 출력
 
 확인 완료 후 아래 형식으로 상태를 출력한다:
 
@@ -136,7 +136,7 @@ npm -v
 | npm | any | OK | 10.x.x | Node.js에 포함 |
 ```
 
-#### 0-5. 설치 실패 시 대응
+#### 1-5. 설치 실패 시 대응
 
 자동 설치가 실패하면:
 1. 에러 메시지를 사용자에게 출력
@@ -148,21 +148,21 @@ npm -v
 
 ---
 
-### Step 0.5: MCP 서버 환경 확인 및 설치
+### Step 2: MCP 서버 환경 확인 및 설치
 
-#### 0.5-1. MCP CLI 도구 설치 확인
+#### 2-1. MCP CLI 도구 설치 확인
 
 ```bash
-which npx              # context7, sequential-thinking, playwright, github용 (Step 0에서 Node.js 설치 시 포함)
+which npx              # context7, sequential-thinking, playwright, github용 (Step 1에서 Node.js 설치 시 포함)
 which uvx              # serena용
 which markitdown-mcp   # markitdown용
 ```
 
-#### 0.5-2. 미설치 MCP 도구 자동 설치
+#### 2-2. 미설치 MCP 도구 자동 설치
 
 | CLI 도구 | 사용하는 MCP 서버 | 설치 명령어 |
 |----------|------------------|------------|
-| `npx` | context7, sequential-thinking, playwright, github | Step 0에서 Node.js 설치 시 자동 포함 |
+| `npx` | context7, sequential-thinking, playwright, github | Step 1에서 Node.js 설치 시 자동 포함 |
 | `uvx` | serena | `pip install uv` |
 | `markitdown-mcp` | markitdown | `pip install markitdown-mcp` |
 
@@ -174,7 +174,7 @@ which uvx || pip install uv
 which markitdown-mcp || pip install markitdown-mcp
 ```
 
-#### 0.5-3. 환경 변수 확인
+#### 2-3. 환경 변수 확인
 
 ```bash
 echo $CONTEXT7_API_KEY
@@ -196,7 +196,7 @@ Q2. GitHub Personal Access Token을 입력해주세요.
 - 사용자가 `skip`을 입력하면 해당 서버 없이 진행 (경고 메시지 출력)
 - 입력받은 값은 shell profile에 export 안내 또는 `.env`에 저장
 
-#### 0.5-4. MCP 서버 상태 테이블 출력
+#### 2-4. MCP 서버 상태 테이블 출력
 
 ```
 | MCP 서버 | CLI 도구 | 설치 상태 | 환경 변수 | 사용 가능 |
@@ -260,12 +260,12 @@ MCP 서버:
 
 ```bash
 # ⚠️ 최초 구현 시 반드시 실행해야 하는 명령어 순서
-# Step 1: 기존 .git 삭제
+# 1단계: 기존 .git 삭제
 rm -rf .git
 
-# Step 2: (프로젝트 파일 생성/수정 작업)
+# 2단계: (프로젝트 파일 생성/수정 작업)
 
-# Step 3: 새 Git 저장소 생성 및 초기 커밋
+# 3단계: 새 Git 저장소 생성 및 초기 커밋
 git init
 git add .
 git commit -m "feat: 프로젝트 초기 구현"
@@ -342,7 +342,7 @@ git commit -m "feat: 프로젝트 초기 구현"
 
 ### 인터뷰 진행 방법
 
-#### Step 1: 설정값 확인
+#### 1단계: 설정값 확인
 ```bash
 # Git 설정 확인
 git config user.name
@@ -352,7 +352,7 @@ git config user.email
 cat .env
 ```
 
-#### Step 2: 누락된 값이 있으면 인터뷰 시작
+#### 2단계: 누락된 값이 있으면 인터뷰 시작
 
 **인터뷰 형식 예시**:
 ```
@@ -372,7 +372,7 @@ cat .env
    (예: your-email@example.com)"
 ```
 
-#### Step 3: 값 저장
+#### 3단계: 값 저장
 ```bash
 # Git 설정 저장
 git config --global user.name "사용자입력값"
