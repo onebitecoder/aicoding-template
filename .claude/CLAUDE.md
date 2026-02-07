@@ -49,6 +49,7 @@
 [Step 6] 프로젝트 파일 생성/수정 + VERSION 파일 생성 (0.1.0)
         - 구현 중 필요한 의존성은 즉시 설치 (pip install / npm install)
         - DB 모델 작성 후: alembic init + alembic revision --autogenerate + alembic upgrade head
+        - Phase 완료마다 PROGRESS.md 업데이트 + 체크포인트 커밋
 [Step 7] 린트/테스트 실행 → FAIL이면 수정 → PASS까지 반복
 [Step 8] install.sh 재실행 (의존성 파일 최종 동기화 확인)
 [Step 9] git init + 초기 커밋 + git tag v0.1.0
@@ -104,6 +105,28 @@ git tag v0.1.0
 - 코드 작성 전에 **항상 Plan Mode를 사용**하여 계획 수립.
 - 사용자 승인 후 구현 시작.
 - **예외**: 단순 오타 수정, 한 줄 변경, 사용자가 "바로 수정해줘" 요청 시.
+
+## 대규모 작업 규칙 (IMPORTANT)
+
+### 진행 상황 기록
+- 구현 중 각 Phase 완료 시 **PROGRESS.md에 진행 상황 기록**
+- 컨텍스트 중단 시 PROGRESS.md를 읽고 이어서 진행
+- PROGRESS.md 형식:
+  ```markdown
+  # 구현 진행 상황
+  ## 완료된 Phase
+  - [x] Phase 1: (내용) - 커밋: abc1234
+  - [x] Phase 2: (내용) - 커밋: def5678
+  ## 현재 진행 중
+  - [ ] Phase 3: (내용) - 진행률, 남은 작업 설명
+  ## 남은 Phase
+  - [ ] Phase 4: (내용)
+  ```
+
+### 체크포인트 커밋
+- **Phase마다 커밋**을 만들어 중단 후 재시작해도 `git log`와 `git diff`로 현재 상태를 빠르게 파악 가능
+- 커밋 메시지 형식: `feat: Phase N - (Phase 설명)`
+- 최종 커밋 후 PROGRESS.md 삭제
 
 ## Frontend 개발 규칙
 
