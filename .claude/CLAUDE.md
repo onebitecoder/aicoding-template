@@ -295,6 +295,11 @@ app.add_middleware(
 - **매 커밋이 아닌 릴리스/배포 시점에 버전 업데이트**
 - `fix:` → PATCH, `feat:` → MINOR, `BREAKING CHANGE` → MAJOR
 
+## 컨텍스트 경량화
+- 파일 탐색/조사는 Task(Explore)로 위임한다.
+- 테스트/린트 실행은 Task(Bash)로 위임한다.
+- 큰 파일은 필요한 부분만 Read(offset/limit)한다.
+
 ## Debugging & Logging
 
 - **개발**: stdout + `backend/debug.log` / `frontend/debug.log`
