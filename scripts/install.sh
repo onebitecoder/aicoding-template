@@ -2,6 +2,7 @@
 # AI Coding Template - Installation Script (Cross-platform)
 # 비개발자도 사용할 수 있도록 모든 의존성을 자동 설치합니다.
 # 지원 OS: macOS, Linux, Windows (Git Bash / WSL)
+# 호환성: bash 3.2+ (macOS 기본 bash 포함)
 #
 # 설치 흐름:
 # 1. OS 감지
@@ -206,9 +207,13 @@ install_tool() {
 # MCP CLI 도구 설치
 # ============================================
 
-# MCP 도구 결과 저장용 연관 배열
-declare -A MCP_STATUS
-declare -A MCP_VERSION
+# MCP 도구 결과 저장 (bash 3 호환 - 개별 변수)
+MCP_STATUS_npx="SKIP"
+MCP_STATUS_uvx="SKIP"
+MCP_STATUS_markitdown="SKIP"
+MCP_VERSION_npx="-"
+MCP_VERSION_uvx="-"
+MCP_VERSION_markitdown="-"
 
 install_mcp_tools() {
     local pip_cmd="$1"
@@ -218,12 +223,12 @@ install_mcp_tools() {
         local npx_ver
         npx_ver=$(npx --version 2>/dev/null || echo "?")
         success "npx ${npx_ver} (Node.js에 포함)"
-        MCP_STATUS[npx]="OK"
-        MCP_VERSION[npx]="$npx_ver"
+        MCP_STATUS_npx="OK"
+        MCP_VERSION_npx="$npx_ver"
     else
         warning "npx를 찾을 수 없습니다. Node.js가 올바르게 설치되었는지 확인하세요."
-        MCP_STATUS[npx]="FAIL"
-        MCP_VERSION[npx]="-"
+        MCP_STATUS_npx="FAIL"
+        MCP_VERSION_npx="-"
     fi
 
     # uvx (pip install uv)
@@ -231,38 +236,38 @@ install_mcp_tools() {
         local uvx_ver
         uvx_ver=$(uvx --version 2>/dev/null || echo "?")
         success "uvx 이미 설치됨 (${uvx_ver})"
-        MCP_STATUS[uvx]="OK"
-        MCP_VERSION[uvx]="$uvx_ver"
+        MCP_STATUS_uvx="OK"
+        MCP_VERSION_uvx="$uvx_ver"
     else
         info "uvx 설치 중 (pip install uv)..."
         if $pip_cmd install uv &>/dev/null; then
             local uvx_ver
             uvx_ver=$(uvx --version 2>/dev/null || echo "설치됨")
             success "uvx 설치 완료 (${uvx_ver})"
-            MCP_STATUS[uvx]="OK"
-            MCP_VERSION[uvx]="$uvx_ver"
+            MCP_STATUS_uvx="OK"
+            MCP_VERSION_uvx="$uvx_ver"
         else
             warning "uvx 설치 실패 (pip install uv). serena MCP 서버를 사용할 수 없습니다."
-            MCP_STATUS[uvx]="FAIL"
-            MCP_VERSION[uvx]="-"
+            MCP_STATUS_uvx="FAIL"
+            MCP_VERSION_uvx="-"
         fi
     fi
 
     # markitdown-mcp
     if command_exists markitdown-mcp; then
         success "markitdown-mcp 이미 설치됨"
-        MCP_STATUS[markitdown]="OK"
-        MCP_VERSION[markitdown]="-"
+        MCP_STATUS_markitdown="OK"
+        MCP_VERSION_markitdown="-"
     else
         info "markitdown-mcp 설치 중..."
         if $pip_cmd install markitdown-mcp &>/dev/null; then
             success "markitdown-mcp 설치 완료"
-            MCP_STATUS[markitdown]="OK"
-            MCP_VERSION[markitdown]="-"
+            MCP_STATUS_markitdown="OK"
+            MCP_VERSION_markitdown="-"
         else
             warning "markitdown-mcp 설치 실패. markitdown MCP 서버를 사용할 수 없습니다."
-            MCP_STATUS[markitdown]="FAIL"
-            MCP_VERSION[markitdown]="-"
+            MCP_STATUS_markitdown="FAIL"
+            MCP_VERSION_markitdown="-"
         fi
     fi
 }
@@ -359,7 +364,9 @@ save_env_to_profile() {
 # MCP 서버 환경변수 설정
 # ============================================
 
-declare -A ENV_RESULTS
+# 환경변수 결과 저장 (bash 3 호환 - 병렬 인덱스 배열)
+ENV_RESULT_NAMES=()
+ENV_RESULT_VALUES=()
 
 setup_mcp_env_variables() {
     local profile_path
@@ -375,6 +382,7 @@ setup_mcp_env_variables() {
         "발급: GitHub > Settings > Developer settings > Personal access tokens"
     )
 
+    local i
     for i in "${!var_names[@]}"; do
         local name="${var_names[$i]}"
         local desc="${var_descs[$i]}"
@@ -384,7 +392,8 @@ setup_mcp_env_variables() {
         if [[ -n "$current_value" ]]; then
             local masked="${current_value:0:4}***"
             success "${name} 이미 설정됨 (${masked})"
-            ENV_RESULTS[$name]="OK"
+            ENV_RESULT_NAMES+=("$name")
+            ENV_RESULT_VALUES+=("OK")
             continue
         fi
 
@@ -394,17 +403,20 @@ setup_mcp_env_variables() {
         if [[ -n "$value" ]]; then
             save_env_to_profile "$name" "$value" "$profile_path"
             export "$name=$value"
-            ENV_RESULTS[$name]="OK"
+            ENV_RESULT_NAMES+=("$name")
+            ENV_RESULT_VALUES+=("OK")
         else
             warning "${name}을(를) 건너뛰었습니다. 해당 MCP 서버가 동작하지 않을 수 있습니다."
-            ENV_RESULTS[$name]="SKIP"
+            ENV_RESULT_NAMES+=("$name")
+            ENV_RESULT_VALUES+=("SKIP")
         fi
     done
 
     if [[ -n "$profile_path" ]]; then
         local has_ok=false
-        for status in "${ENV_RESULTS[@]}"; do
-            [[ "$status" == "OK" ]] && has_ok=true
+        local v
+        for v in "${ENV_RESULT_VALUES[@]}"; do
+            [[ "$v" == "OK" ]] && has_ok=true
         done
         if $has_ok; then
             echo ""
@@ -443,25 +455,26 @@ check_git_config() {
 # 상태 테이블 출력
 # ============================================
 
-# 상태 저장용 배열 (순서 유지를 위해 indexed array 사용)
-declare -a STATUS_NAMES=()
-declare -A STATUS_STATES=()
-declare -A STATUS_VERSIONS=()
+# 상태 저장용 병렬 인덱스 배열 (bash 3 호환)
+STATUS_NAMES=()
+STATUS_STATES=()
+STATUS_VERSIONS=()
 
 add_status() {
     local name="$1"
     local state="$2"
     local version="$3"
     STATUS_NAMES+=("$name")
-    STATUS_STATES[$name]="$state"
-    STATUS_VERSIONS[$name]="$version"
+    STATUS_STATES+=("$state")
+    STATUS_VERSIONS+=("$version")
 }
 
 print_status_table() {
     # 컬럼 너비 계산
     local name_width=6
-    for name in "${STATUS_NAMES[@]}"; do
-        local len=${#name}
+    local idx
+    for idx in "${!STATUS_NAMES[@]}"; do
+        local len=${#STATUS_NAMES[$idx]}
         (( len > name_width )) && name_width=$len
     done
 
@@ -484,9 +497,10 @@ print_status_table() {
     printf "| %-${name_width}s | %-${status_width}s | %-${ver_width}s |\n" "항목" "상태" "버전"
     echo "$sep"
 
-    for name in "${STATUS_NAMES[@]}"; do
-        local state="${STATUS_STATES[$name]}"
-        local version="${STATUS_VERSIONS[$name]}"
+    for idx in "${!STATUS_NAMES[@]}"; do
+        local name="${STATUS_NAMES[$idx]}"
+        local state="${STATUS_STATES[$idx]}"
+        local version="${STATUS_VERSIONS[$idx]}"
         local colored_state
 
         case "$state" in
@@ -657,9 +671,9 @@ main() {
     fi
     install_mcp_tools "$pip_cmd"
 
-    add_status "npx (MCP)" "${MCP_STATUS[npx]:-SKIP}" "${MCP_VERSION[npx]:--}"
-    add_status "uvx (MCP)" "${MCP_STATUS[uvx]:-SKIP}" "${MCP_VERSION[uvx]:--}"
-    add_status "markitdown (MCP)" "${MCP_STATUS[markitdown]:-SKIP}" "${MCP_VERSION[markitdown]:--}"
+    add_status "npx (MCP)" "${MCP_STATUS_npx}" "${MCP_VERSION_npx}"
+    add_status "uvx (MCP)" "${MCP_STATUS_uvx}" "${MCP_VERSION_uvx}"
+    add_status "markitdown (MCP)" "${MCP_STATUS_markitdown}" "${MCP_VERSION_markitdown}"
 
     echo ""
 
@@ -670,8 +684,9 @@ main() {
 
     setup_mcp_env_variables
 
-    for name in "${!ENV_RESULTS[@]}"; do
-        add_status "$name" "${ENV_RESULTS[$name]}" "-"
+    local ei
+    for ei in "${!ENV_RESULT_NAMES[@]}"; do
+        add_status "${ENV_RESULT_NAMES[$ei]}" "${ENV_RESULT_VALUES[$ei]}" "-"
     done
 
     echo ""
@@ -779,8 +794,9 @@ main() {
 
     # 실패 항목 확인
     local failed=()
-    for name in "${STATUS_NAMES[@]}"; do
-        [[ "${STATUS_STATES[$name]}" == "FAIL" ]] && failed+=("$name")
+    local fi_idx
+    for fi_idx in "${!STATUS_NAMES[@]}"; do
+        [[ "${STATUS_STATES[$fi_idx]}" == "FAIL" ]] && failed+=("${STATUS_NAMES[$fi_idx]}")
     done
 
     if [[ ${#failed[@]} -gt 0 ]]; then
