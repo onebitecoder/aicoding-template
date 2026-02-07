@@ -42,17 +42,19 @@
 
 ```
 [Step 1] install.sh 실행 (시스템 도구 + MCP 도구 + 의존성 일괄 설치)
-[Step 2] .git 삭제 (Git 초기화)
+[Step 2] .git 삭제 → git init (새 Git 저장소 생성)
 [Step 3] SPEC.md 검토 및 스펙 구체화
 [Step 4] 필수 설정값 인터뷰 (프로젝트/배포 관련)
-[Step 5] Plan Mode로 구현 계획 수립
-[Step 6] 프로젝트 파일 생성/수정 + VERSION 파일 생성 (0.1.0)
+[Step 5] Plan Mode로 구현 계획 수립 (반드시 Phase 단위로 분할)
+[Step 6] PROGRESS.md 생성 (Plan의 Phase 목록으로 초기화)
+[Step 7] Phase별 구현 (각 Phase 완료 시마다):
+        - 프로젝트 파일 생성/수정
         - 구현 중 필요한 의존성은 즉시 설치 (pip install / npm install)
         - DB 모델 작성 후: alembic init + alembic revision --autogenerate + alembic upgrade head
-        - Phase 완료마다 PROGRESS.md 업데이트 + 체크포인트 커밋
-[Step 7] 린트/테스트 실행 → FAIL이면 수정 → PASS까지 반복
-[Step 8] install.sh 재실행 (의존성 파일 최종 동기화 확인)
-[Step 9] git init + 초기 커밋 + git tag v0.1.0
+        - PROGRESS.md 업데이트 + 체크포인트 커밋
+[Step 8] 린트/테스트 실행 → FAIL이면 수정 → PASS까지 반복
+[Step 9] install.sh 재실행 (의존성 파일 최종 동기화 확인)
+[Step 10] VERSION 파일 생성 (0.1.0) + PROGRESS.md 삭제 + 최종 커밋 + git tag v0.1.0
 ```
 
 > **핵심**: `bash scripts/install.sh` 하나로 시스템 도구(git/node/python), MCP CLI 도구, 가상환경, Backend/Frontend 의존성이 모두 설치된다. MCP 환경변수(CONTEXT7_API_KEY, GITHUB_PAT)는 **선택사항**으로, 미설정 시 자동으로 skip된다.
@@ -79,11 +81,10 @@
 ### 최초 구현 시 순서
 ```bash
 rm -rf .git          # 1. 기존 템플릿 .git 삭제
-# (프로젝트 파일 생성/수정)
-git init             # 2. 새 Git 저장소 생성
-git add .
-git commit -m "feat: 프로젝트 초기 구현"
-git tag v0.1.0
+git init             # 2. 즉시 새 Git 저장소 생성 (Phase별 체크포인트 커밋을 위해)
+# (Phase별 구현 + 체크포인트 커밋 반복)
+# (최종 Phase 완료 후)
+git tag v0.1.0       # 3. 버전 태그
 ```
 
 ## 필수 설정값 인터뷰
@@ -106,27 +107,43 @@ git tag v0.1.0
 - 사용자 승인 후 구현 시작.
 - **예외**: 단순 오타 수정, 한 줄 변경, 사용자가 "바로 수정해줘" 요청 시.
 
+### 대규모 작업 판단 기준
+- 계획 수립 시 **Phase가 3개 이상**이면 대규모 작업으로 판단한다.
+- 대규모 작업에만 Phase 분할 + PROGRESS.md + 체크포인트 커밋을 적용한다.
+- 소규모 작업(Phase 2개 이하)은 Plan Mode만 거치고 일반 Workflow를 따른다.
+
 ## 대규모 작업 규칙 (IMPORTANT)
 
-### 진행 상황 기록
-- 구현 중 각 Phase 완료 시 **PROGRESS.md에 진행 상황 기록**
-- 컨텍스트 중단 시 PROGRESS.md를 읽고 이어서 진행
-- PROGRESS.md 형식:
+> **적용 조건**: Plan Mode에서 계획이 **Phase 3개 이상**으로 나뉘는 경우에만 적용한다.
+> 소규모 기능 추가/수정/버그 수정 등은 이 규칙을 적용하지 않는다.
+
+### PROGRESS.md 생성
+- Plan Mode 승인 후, **코드 작성 전에 PROGRESS.md를 먼저 생성**한다.
+- Plan의 Phase 목록을 그대로 옮겨 초기 상태로 작성한다.
+- 형식:
   ```markdown
   # 구현 진행 상황
   ## 완료된 Phase
-  - [x] Phase 1: (내용) - 커밋: abc1234
-  - [x] Phase 2: (내용) - 커밋: def5678
+  (없음)
   ## 현재 진행 중
-  - [ ] Phase 3: (내용) - 진행률, 남은 작업 설명
+  - [ ] Phase 1: (내용)
   ## 남은 Phase
+  - [ ] Phase 2: (내용)
+  - [ ] Phase 3: (내용)
   - [ ] Phase 4: (내용)
   ```
 
-### 체크포인트 커밋
-- **Phase마다 커밋**을 만들어 중단 후 재시작해도 `git log`와 `git diff`로 현재 상태를 빠르게 파악 가능
-- 커밋 메시지 형식: `feat: Phase N - (Phase 설명)`
-- 최종 커밋 후 PROGRESS.md 삭제
+### Phase 완료 시 반복 작업
+각 Phase를 완료할 때마다 **반드시** 아래를 수행한다:
+1. PROGRESS.md 업데이트 (완료 체크 + 커밋 해시 기록 + 다음 Phase를 "현재 진행 중"으로 이동)
+2. 체크포인트 커밋: `feat: Phase N - (Phase 설명)`
+
+### 컨텍스트 중단 시 복구
+- 대화가 중단된 후 재시작하면, **PROGRESS.md를 읽고** 마지막 완료 Phase 이후부터 이어서 진행한다.
+- `git log`와 `git diff`로 현재 상태를 추가 확인한다.
+
+### 최종 정리
+- 모든 Phase 완료 후 PROGRESS.md를 삭제하고 최종 커밋에 포함한다.
 
 ## Frontend 개발 규칙
 
