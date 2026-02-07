@@ -41,20 +41,23 @@
 ### 프로젝트 구현 요청 시 전체 실행 순서
 
 ```
-[Step 1] install.py 실행 (시스템 도구 + MCP 도구 + 의존성 일괄 설치)
+[Step 1] install.sh 실행 (시스템 도구 + MCP 도구 + 의존성 일괄 설치)
 [Step 2] .git 삭제 (Git 초기화)
 [Step 3] SPEC.md 검토 및 스펙 구체화
 [Step 4] 필수 설정값 인터뷰 (프로젝트/배포 관련)
 [Step 5] Plan Mode로 구현 계획 수립
 [Step 6] 프로젝트 파일 생성/수정 + VERSION 파일 생성 (0.1.0)
-[Step 7] install.py 재실행 (새로 생성된 의존성 설치)
-[Step 8] git init + 초기 커밋 + git tag v0.1.0
+        - 구현 중 필요한 의존성은 즉시 설치 (pip install / npm install)
+        - DB 모델 작성 후: alembic init + alembic revision --autogenerate + alembic upgrade head
+[Step 7] 린트/테스트 실행 → FAIL이면 수정 → PASS까지 반복
+[Step 8] install.sh 재실행 (의존성 파일 최종 동기화 확인)
+[Step 9] git init + 초기 커밋 + git tag v0.1.0
 ```
 
-> **핵심**: `python scripts/install.py` 하나로 시스템 도구(git/node/python), MCP CLI 도구, 가상환경, Backend/Frontend 의존성이 모두 설치된다. MCP 환경변수(CONTEXT7_API_KEY, GITHUB_PAT)는 **선택사항**으로, 미설정 시 자동으로 skip된다.
+> **핵심**: `bash scripts/install.sh` 하나로 시스템 도구(git/node/python), MCP CLI 도구, 가상환경, Backend/Frontend 의존성이 모두 설치된다. MCP 환경변수(CONTEXT7_API_KEY, GITHUB_PAT)는 **선택사항**으로, 미설정 시 자동으로 skip된다.
 
 ### 주의사항
-- install.py는 **프로젝트 구현 요청 시** 가장 먼저 실행 (기능 추가/수정 시에는 불필요)
+- install.sh는 **프로젝트 구현 요청 시** 가장 먼저 실행 (기능 추가/수정 시에는 불필요)
 - 이미 설치되어 있으면 재설치하지 않고 건너뜀
 - `.python-version`(3.11)과 `.nvmrc`(20) 파일의 버전을 기준으로 설치
 
@@ -84,7 +87,7 @@ git tag v0.1.0
 
 ## 필수 설정값 인터뷰
 
-**install.py가 다루지 않는 프로젝트별 설정값(프로젝트 정보, 외부 API, 배포 설정)은 인터뷰 형식으로 입력받는다.**
+**install.sh가 다루지 않는 프로젝트별 설정값(프로젝트 정보, 외부 API, 배포 설정)은 인터뷰 형식으로 입력받는다.**
 
 - 필수 설정값이 없으면 사용자에게 먼저 질문한다.
 - 기본값이 있는 항목은 기본값 제시 후 확인.
@@ -128,12 +131,12 @@ git tag v0.1.0
 
 ### 스크립트 실행 방법
 ```bash
-python scripts/install.py          # 의존성 설치
-python scripts/dev.py              # 개발 서버 (전체)
-python scripts/dev.py backend      # Backend만
-python scripts/dev.py frontend     # Frontend만
-python scripts/test.py             # 테스트 (전체)
-python scripts/test.py lint        # 린트만
+bash scripts/install.sh            # 의존성 설치
+bash scripts/dev.sh                # 개발 서버 (전체)
+bash scripts/dev.sh backend        # Backend만
+bash scripts/dev.sh frontend       # Frontend만
+bash scripts/test.sh               # 테스트 (전체)
+bash scripts/test.sh lint          # 린트만
 ```
 
 ### 새 패키지 설치 워크플로우
@@ -235,15 +238,7 @@ app.add_middleware(
 - 비즈니스 로직(services/)과 인프라 코드(repositories/) 분리
 
 ### 백엔드 모듈 구조
-```
-backend/app/
-├── api/           # API 라우터
-├── services/      # 비즈니스 로직
-├── repositories/  # 데이터 접근
-├── models/        # SQLAlchemy 모델
-├── schemas/       # Pydantic 스키마
-└── utils/         # 유틸리티
-```
+- SPEC.md의 프로젝트 구조 정의를 따른다.
 
 ## Git
 - commit message: 한국어, Conventional Commits

@@ -34,6 +34,11 @@
       "type": "stdio",
       "command": "markitdown-mcp",
       "args": []
+    },
+    "ripgrep": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "mcp-ripgrep@latest"]
     }
   }
 }

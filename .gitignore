@@ -48,6 +48,9 @@ dist-ssr/
 *.sqlite3
 postgres-data/
 
+# Local storage (uploads)
+storage/
+
 # Logs
 logs/
 *.log

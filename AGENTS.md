@@ -39,20 +39,23 @@
 ### 프로젝트 구현 요청 시 전체 실행 순서
 
 ```
-[Step 1] install.py 실행 (시스템 도구 + MCP 도구 + 의존성 일괄 설치)
+[Step 1] install.sh 실행 (시스템 도구 + MCP 도구 + 의존성 일괄 설치)
 [Step 2] .git 삭제 (Git 초기화)
 [Step 3] SPEC.md 검토 및 스펙 구체화
 [Step 4] 필수 설정값 인터뷰 (프로젝트/배포 관련)
 [Step 5] Plan Mode로 구현 계획 수립
 [Step 6] 프로젝트 파일 생성/수정 + VERSION 파일 생성 (0.1.0)
-[Step 7] install.py 재실행 (새로 생성된 의존성 설치)
-[Step 8] git init + 초기 커밋 + git tag v0.1.0
+        - 구현 중 필요한 의존성은 즉시 설치 (pip install / npm install)
+        - DB 모델 작성 후: alembic init + alembic revision --autogenerate + alembic upgrade head
+[Step 7] 린트/테스트 실행 → FAIL이면 수정 → PASS까지 반복
+[Step 8] install.sh 재실행 (의존성 파일 최종 동기화 확인)
+[Step 9] git init + 초기 커밋 + git tag v0.1.0
 ```
 
-> **핵심**: `python scripts/install.py` 하나로 시스템 도구(git/node/python), MCP CLI 도구(uvx/markitdown-mcp), 가상환경, Backend/Frontend 의존성이 모두 설치된다. MCP 환경변수(CONTEXT7_API_KEY, GITHUB_PAT)는 **선택사항**으로, 미설정 시 자동으로 skip된다.
+> **핵심**: `bash scripts/install.sh` 하나로 시스템 도구(git/node/python), MCP CLI 도구(uvx/markitdown-mcp), 가상환경, Backend/Frontend 의존성이 모두 설치된다. MCP 환경변수(CONTEXT7_API_KEY, GITHUB_PAT)는 **선택사항**으로, 미설정 시 자동으로 skip된다.
 
 ### 주의사항
-- install.py는 **프로젝트 구현 요청 시** 가장 먼저 실행 (기능 추가/수정 시 불필요)
+- install.sh는 **프로젝트 구현 요청 시** 가장 먼저 실행 (기능 추가/수정 시 불필요)
 - 이미 설치되어 있으면 재설치하지 않고 건너뜀
 - `.python-version`(3.11)과 `.nvmrc`(20) 파일의 버전을 기준으로 설치
 - 설치 실패 시 수동 설치 방법 안내
@@ -582,20 +585,20 @@ function UserListPage() {
 
 ## 의존성 관리 및 환경 구축 (IMPORTANT)
 
-**개발 시작 전 반드시 `install.py`를 실행하여 환경을 구축해야 한다.**
+**개발 시작 전 반드시 `install.sh`를 실행하여 환경을 구축해야 한다.**
 
 ### 개발 환경 구축 순서
 
-1. **install.py 실행** (최초 1회 또는 의존성 변경 시)
+1. **install.sh 실행** (최초 1회 또는 의존성 변경 시)
    ```bash
-   python scripts/install.py
+   bash scripts/install.sh
    ```
-2. **dev.py 실행** (개발 서버 시작)
+2. **dev.sh 실행** (개발 서버 시작)
    ```bash
-   python scripts/dev.py
+   bash scripts/dev.sh
    ```
 
-> **참고**: 모든 스크립트는 Python 기반으로, macOS/Linux/Windows에서 동일하게 동작합니다.
+> **참고**: 스크립트는 bash/Python 기반으로, macOS/Linux/Windows(Git Bash/WSL)에서 동일하게 동작합니다.
 
 ### 새 패키지 설치 워크플로우
 
@@ -657,40 +660,40 @@ df = pandas.DataFrame()
 | Backend (Python) | `pip install 패키지명` | `backend/requirements.txt` |
 | Frontend (Node.js) | `npm install 패키지명` | `frontend/package.json` |
 
-### install.py 유지 규칙
+### install.sh 유지 규칙
 
-install.py는 다음을 수행해야 한다:
+install.sh는 다음을 수행해야 한다:
 - Python 가상환경 생성 및 활성화
 - `backend/requirements.txt` 패키지 설치
 - `frontend/package.json` 패키지 설치
 - 환경 변수 파일 생성 (`.env` 없을 경우)
 
-**스크립트 위치**: `scripts/install.py`, `scripts/dev.py`, `scripts/test.py`
+**스크립트 위치**: `scripts/install.sh`, `scripts/dev.sh`, `scripts/test.sh`
 
 **스크립트 실행 방법**:
 ```bash
 # 의존성 설치
-python scripts/install.py
+bash scripts/install.sh
 
 # 개발 서버 실행
-python scripts/dev.py          # 전체
-python scripts/dev.py backend  # Backend만
-python scripts/dev.py frontend # Frontend만
+bash scripts/dev.sh            # 전체
+bash scripts/dev.sh backend    # Backend만
+bash scripts/dev.sh frontend   # Frontend만
 
 # 테스트 실행
-python scripts/test.py           # 전체
-python scripts/test.py lint      # 린트만
-python scripts/test.py backend   # Backend만
-python scripts/test.py --coverage # 커버리지 포함
+bash scripts/test.sh             # 전체
+bash scripts/test.sh lint        # 린트만
+bash scripts/test.sh backend     # Backend만
+bash scripts/test.sh --coverage  # 커버리지 포함
 ```
 
 ### 체크리스트
 
 ```
-[ ] 개발 시작 전 python scripts/install.py를 실행했는가?
+[ ] 개발 시작 전 bash scripts/install.sh를 실행했는가?
 [ ] 새 패키지 설치 시 requirements.txt 또는 package.json에 추가했는가?
-[ ] install.py 실행 시 모든 의존성이 설치되는가?
-[ ] 다른 개발자도 install.py만 실행하면 환경 구축이 되는가?
+[ ] install.sh 실행 시 모든 의존성이 설치되는가?
+[ ] 다른 개발자도 install.sh만 실행하면 환경 구축이 되는가?
 ```
 
 ### Dockerfile과 패키지 관리
