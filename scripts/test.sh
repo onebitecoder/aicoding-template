@@ -75,14 +75,15 @@ load_env() {
 # ============================================
 # 결과 저장
 # ============================================
-declare -a RESULT_NAMES=()
-declare -A RESULT_STATES=()
+# 결과 저장용 병렬 인덱스 배열 (bash 3 호환)
+RESULT_NAMES=()
+RESULT_STATES=()
 
 add_result() {
     local name="$1"
     local passed="$2"  # true / false
     RESULT_NAMES+=("$name")
-    RESULT_STATES[$name]="$passed"
+    RESULT_STATES+=("$passed")
 }
 
 # ============================================
@@ -225,8 +226,10 @@ print_results() {
     echo "|------|------|"
 
     local all_passed=true
-    for name in "${RESULT_NAMES[@]}"; do
-        local passed="${RESULT_STATES[$name]}"
+    local idx
+    for idx in "${!RESULT_NAMES[@]}"; do
+        local name="${RESULT_NAMES[$idx]}"
+        local passed="${RESULT_STATES[$idx]}"
         if [[ "$passed" == "true" ]]; then
             echo -e "| ${name} | ${GREEN}PASS${RESET} |"
         else

@@ -69,6 +69,11 @@ get_python_cmd() {
         if python --version 2>&1 | grep -q "Python 3"; then
             echo "python"
         fi
+    elif command_exists py; then
+        # Windows Python Launcher
+        if py -3 --version &>/dev/null; then
+            echo "py -3"
+        fi
     fi
 }
 
