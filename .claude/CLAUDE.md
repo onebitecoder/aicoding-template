@@ -51,8 +51,9 @@
         - 프로젝트 파일 생성/수정
         - 구현 중 필요한 의존성은 즉시 설치 (pip install / npm install)
         - DB 모델 작성 후: alembic init + alembic revision --autogenerate + alembic upgrade head
+        - 린트/테스트 실행 → FAIL이면 수정 → PASS까지 반복 (테스트 가능한 Phase만)
         - PROGRESS.md 업데이트 + 체크포인트 커밋
-[Step 8] 린트/테스트 실행 → FAIL이면 수정 → PASS까지 반복
+[Step 8] 최종 린트/테스트 실행 → 전체 통합 검증
 [Step 9] install.sh 재실행 (의존성 파일 최종 동기화 확인)
 [Step 10] VERSION 파일 생성 (0.1.0) + PROGRESS.md 삭제 + 최종 커밋 + git tag v0.1.0
 ```
@@ -135,8 +136,11 @@ git tag v0.1.0       # 3. 버전 태그
 
 ### Phase 완료 시 반복 작업
 각 Phase를 완료할 때마다 **반드시** 아래를 수행한다:
-1. PROGRESS.md 업데이트 (완료 체크 + 커밋 해시 기록 + 다음 Phase를 "현재 진행 중"으로 이동)
-2. 체크포인트 커밋: `feat: Phase N - (Phase 설명)`
+1. **린트/테스트 실행** → FAIL이면 해당 Phase 내에서 수정 → PASS까지 반복
+   - 테스트 불가능한 Phase(프로젝트 구조 생성, 설정 파일 등)는 린트만 확인 후 건너뜀
+   - **다음 Phase로 넘어가기 전에 반드시 현재 Phase가 정상 동작해야 한다**
+2. PROGRESS.md 업데이트 (완료 체크 + 커밋 해시 기록 + 다음 Phase를 "현재 진행 중"으로 이동)
+3. 체크포인트 커밋: `feat: Phase N - (Phase 설명)`
 
 ### 컨텍스트 중단 시 복구
 - 대화가 중단된 후 재시작하면, **PROGRESS.md를 읽고** 마지막 완료 Phase 이후부터 이어서 진행한다.
