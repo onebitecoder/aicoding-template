@@ -11,17 +11,17 @@
 ## 1. Project Overview
 
 ### 1.1 Purpose
-사용자가 사진을 업로드하고, 좋아요/댓글로 상호작용하는 **소셜 사진 앱 MVP**입니다.
+사용자가 사진을 업로드하고, 좋아요로 상호작용하는 **소셜 사진 앱 MVP**입니다.
 
 ### 1.2 MVP Goals (경량 버전)
 
 - 회원가입/로그인/로그아웃 (Access Token만)
-- 프로필(사진/소개/게시글 그리드) + 프로필 편집
+- 프로필(표시 이름/게시글 그리드) — 읽기 전용
 - 게시글 업로드(**단일 이미지**), 캡션
 - 홈 피드(**전체 최신 게시글**), 게시글 상세
-- 좋아요/댓글(작성/삭제)
+- 좋아요/좋아요 취소
 
-> **범위 제외(Non-goals)**: 팔로우, 해시태그, 검색, 탐색(Explore), 알림(Notifications), 다중 이미지, Reels/Stories/DM, Refresh Token, 이미지 리사이즈/썸네일
+> **범위 제외(Non-goals)**: 팔로우, 해시태그, 검색, 탐색(Explore), 알림(Notifications), 다중 이미지, Reels/Stories/DM, Refresh Token, 이미지 리사이즈/썸네일, 댓글, 프로필 편집/아바타 업로드, 게시글 삭제
 
 ---
 
@@ -43,7 +43,7 @@
 ┌───────────────────────────────────────────────┐
 │              Backend (FastAPI)                   │
 │  ┌────────┐ ┌─────────┐ ┌──────────────────┐  │
-│  │  Auth  │ │  Posts  │ │     Social       │  │
+│  │  Auth  │ │  Posts  │ │     Likes        │  │
 │  └────────┘ └─────────┘ └──────────────────┘  │
 └───────────────────────────────────────────────┘
           ↕                       ↕
@@ -68,7 +68,7 @@
 #### Database
 - **개발**: SQLite
 - **운영**: PostgreSQL
-- **주요 테이블**: users, posts, likes, comments
+- **주요 테이블**: users, posts, likes
 
 ---
 
@@ -79,17 +79,16 @@
 - 사용자는 username으로 프로필 URL을 가진다(`/:username`).
 
 ### 3.2 Profile
-- 사용자는 프로필 사진, 표시 이름, bio를 설정한다.
-- 프로필 페이지에서 게시글 그리드를 본다.
+- 프로필 페이지에서 표시 이름과 게시글 그리드를 본다.
+- 프로필은 읽기 전용(회원가입 시 입력한 정보만 표시).
 
 ### 3.3 Post (Feed)
 - 사용자는 **1장의 이미지**를 업로드하고 캡션을 입력한다.
-- 사용자는 홈 피드에서 **전체 최신 게시글**을 본다(커서 페이지네이션).
-- 사용자는 게시글 상세에서 댓글을 보고 작성한다.
+- 사용자는 홈 피드에서 **전체 최신 게시글**을 본다(offset 페이지네이션).
+- 사용자는 게시글 상세에서 이미지와 좋아요 수를 본다.
 
 ### 3.4 Social
 - 사용자는 게시글에 좋아요/좋아요 취소를 한다.
-- 사용자는 댓글을 작성/삭제한다(본인 댓글만 삭제).
 
 ---
 
@@ -114,12 +113,7 @@ POST /api/v1/auth/logout
 ### 4.2 User/Profile Endpoints
 ```
 GET  /api/v1/users/me
-PATCH /api/v1/users/me
-- Body: { display_name?, bio? }
-
-POST /api/v1/users/me/avatar
-- multipart/form-data: file
-- Response: { avatar_url }
+- Response: { user }
 
 GET  /api/v1/users/{username}
 - Response: { user, stats: { posts } }
@@ -133,16 +127,13 @@ POST /api/v1/posts
 - Response: { post }
 
 GET  /api/v1/posts/{post_id}
-- Response: { post, author, like_count, comment_count, is_liked }
+- Response: { post, author, like_count, is_liked }
 
-DELETE /api/v1/posts/{post_id}
-- 본인 게시글만 삭제
-
-GET  /api/v1/feed?cursor=&limit=
+GET  /api/v1/feed?offset=0&limit=20
 - 전체 최신 게시글 피드
-- Response: { items: [post...], next_cursor }
+- Response: { items: [post...], total, has_next }
 
-GET  /api/v1/users/{username}/posts?cursor=&limit=
+GET  /api/v1/users/{username}/posts?offset=0&limit=20
 - 프로필 그리드용
 ```
 
@@ -152,15 +143,7 @@ POST   /api/v1/posts/{post_id}/like
 DELETE /api/v1/posts/{post_id}/like
 ```
 
-### 4.5 Comments
-```
-GET  /api/v1/posts/{post_id}/comments?cursor=&limit=
-POST /api/v1/posts/{post_id}/comments
-- Body: { content }
-DELETE /api/v1/comments/{comment_id}
-```
-
-### 4.6 System
+### 4.5 System
 ```
 GET /health
 - Response: { "status": "healthy" }
@@ -182,10 +165,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     display_name = Column(String)
-    bio = Column(Text)
-    avatar_url = Column(String)
     created_at = Column(DateTime, default=utcnow)
-    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 class Post(Base):
     __tablename__ = "posts"
@@ -200,34 +180,22 @@ class Like(Base):
     user_id = Column(String, ForeignKey("users.id"), primary_key=True)
     post_id = Column(String, ForeignKey("posts.id"), primary_key=True)
     created_at = Column(DateTime, default=utcnow)
-
-class Comment(Base):
-    __tablename__ = "comments"
-    id = Column(String, primary_key=True)  # uuid str
-    post_id = Column(String, ForeignKey("posts.id"), index=True)
-    author_id = Column(String, ForeignKey("users.id"), index=True)
-    content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=utcnow, index=True)
 ```
 
 ---
 
 ## 6. Business Rules
 
-### 6.1 권한
-- 게시글/댓글 삭제: 작성자만 가능
-
-### 6.2 삭제
-- 게시글 삭제(hard delete) → 연관 좋아요/댓글도 cascade 삭제
-- 댓글 삭제(hard delete)
-
-### 6.3 피드 페이지네이션
-- Cursor 기반: `cursor = created_at + id` 조합
+### 6.1 피드 페이지네이션
+- Offset 기반: `offset` + `limit`
 - limit 기본 20, 최대 50
 
-### 6.4 업로드 제한
+### 6.2 업로드 제한
 - 1게시글 1장
 - 이미지 파일: jpg/png/webp, 최대 10MB
+
+### 6.3 좋아요
+- 같은 게시글에 중복 좋아요 불가 (복합 PK로 보장)
 
 ---
 
@@ -239,14 +207,14 @@ class Comment(Base):
 |-----|--------|------|
 | `/` | Feed | 홈 피드 (전체 최신) |
 | `/p/:postId` | Post Detail | 게시글 상세 |
-| `/:username` | Profile | 프로필 |
+| `/:username` | Profile | 프로필 (읽기 전용) |
 | `/upload` | Upload | 업로드 |
 | `/login` | Login | 로그인 |
 | `/register` | Register | 회원가입 |
 
 ### 7.2 UI/UX Guidelines
 - Mobile-first, 하단 탭(Feed/Upload/Profile)
-- 피드 카드: 상단(작성자) + 이미지 + 액션(Like/Comment) + 캡션 + 댓글 일부
+- 피드 카드: 상단(작성자) + 이미지 + 액션(Like) + 캡션
 - Optimistic UI: 좋아요는 즉시 반영 후 실패 시 롤백
 - Skeleton loading + 빈 상태(empty state) 제공
 
@@ -263,20 +231,18 @@ class Comment(Base):
 
 ## 9. Development Phases
 
-### Phase 1: Foundation
+### Phase 1: Foundation + Auth
 - [ ] FastAPI + React(Vite) 프로젝트 스캐폴딩
 - [ ] Auth(JWT) + User 모델 + 마이그레이션
 - [ ] 기본 레이아웃/라우팅/탭바
+- [ ] 로그인/회원가입 페이지
 
-### Phase 2: Posts + Social
+### Phase 2: Posts + Feed + Like
 - [ ] Upload API + 로컬 스토리지 연동
-- [ ] Post CRUD + 프로필 그리드
-- [ ] Feed(전체 최신) + Post Detail
-- [ ] Like/Unlike + Comment CRUD
-
-### Phase 3: Polish
+- [ ] Post 생성 + 피드(offset 페이지네이션)
+- [ ] Post Detail + 프로필 그리드
+- [ ] Like/Unlike + Optimistic UI
 - [ ] UI 다듬기 + 반응형
-- [ ] 프로필 편집 + 아바타 업로드
 
 ---
 
@@ -348,16 +314,14 @@ VITE_APP_NAME=Instagram MVP
 - Upload: 파일 타입/크기 제한
 - Feed: 전체 최신 게시글 정렬/페이지네이션
 - Like: 중복 좋아요 방지, 카운트 정확성
-- Comment: 작성/삭제 권한
 
 ### Frontend 테스트
 - 로그인 폼 검증
-- 피드 로딩/무한스크롤
+- 피드 로딩/페이지네이션
 - 좋아요 optimistic UI
-- 댓글 작성/삭제
 
 ---
 
-**Document Version**: 1.0-lite
-**Template Type**: Instagram-Style MVP (경량 버전)
+**Document Version**: 1.1-lite
+**Template Type**: Instagram-Style MVP (초경량 버전)
 **용도**: 초기 구현 청사진 (구현 후에는 코드가 Source of Truth)
