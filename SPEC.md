@@ -307,18 +307,51 @@ VITE_APP_NAME=Instagram MVP
 
 ---
 
-## 12. Testing Strategy
+## 12. Testing Requirements
 
-### Backend 테스트
-- Auth: register/login, 토큰 검증
-- Upload: 파일 타입/크기 제한
-- Feed: 전체 최신 게시글 정렬/페이지네이션
-- Like: 중복 좋아요 방지, 카운트 정확성
+> **규칙**: 구현 완료 후 이 섹션을 기준으로 테스트를 생성하고 모두 통과해야 한다.
+> Claude는 이 테스트 케이스를 그대로 코드로 작성해야 한다.
 
-### Frontend 테스트
-- 로그인 폼 검증
-- 피드 로딩/페이지네이션
-- 좋아요 optimistic UI
+### 12.1 Backend - API Contract Tests
+
+| 엔드포인트 | 테스트 케이스 | 기대 상태코드 | 기대 응답 |
+|-----------|-------------|-------------|---------|
+| `POST /api/v1/auth/register` | 정상 가입 | 201 | `{ user, access_token }` |
+| `POST /api/v1/auth/register` | 중복 이메일 | 400 | `{ detail }` |
+| `POST /api/v1/auth/register` | 비밀번호 8자 미만 | 422 | - |
+| `POST /api/v1/auth/login` | 정상 로그인 | 200 | `{ user, access_token }` |
+| `POST /api/v1/auth/login` | 잘못된 비밀번호 | 401 | `{ detail }` |
+| `POST /api/v1/posts` | 정상 업로드 (jpg) | 201 | `{ post }` |
+| `POST /api/v1/posts` | 잘못된 파일 타입 (gif) | 400 | `{ detail }` |
+| `GET /api/v1/posts/feed` | 정상 조회 | 200 | `{ items: PostDetail[], total, has_next }` |
+| `GET /api/v1/posts/feed` | 페이지네이션 (offset) | 200 | `has_next` 값 정확성 |
+| `GET /api/v1/users/{username}` | 존재하는 유저 | 200 | `{ user, stats: { posts } }` |
+| `GET /api/v1/users/{username}/posts` | 정상 조회 | 200 | `{ items: Post[], total, has_next }` ※ PostDetail 아님 |
+| `POST /api/v1/posts/{id}/like` | 정상 좋아요 | 200 | - |
+| `POST /api/v1/posts/{id}/like` | 중복 좋아요 | 400 | `{ detail }` |
+| `DELETE /api/v1/posts/{id}/like` | 좋아요 취소 | 200 | - |
+
+### 12.2 Frontend - Component Render Tests
+
+| 컴포넌트 | 테스트 케이스 |
+|---------|-------------|
+| `LoginPage` | 페이지 렌더링 (이메일/비밀번호 입력창, 로그인 버튼 존재) |
+| `RegisterPage` | 페이지 렌더링 (이메일/비밀번호/유저명 입력창 존재) |
+| `FeedPage` | 피드 로딩 (게시물 목록 렌더링) |
+| `FeedPage` | 빈 상태 (게시물 없을 때 empty state 노출) |
+| `UploadPage` | 파일 선택 영역 렌더링 (`label[for]` 방식으로 input 연결) |
+| `ProfilePage` | 프로필 + 게시물 그리드 렌더링 |
+
+### 12.3 타입 일관성 검증
+
+프론트엔드 `types/index.ts`는 아래 API 응답과 **반드시 1:1 대응**해야 한다:
+
+| API 응답 | Frontend 타입 | 주의사항 |
+|---------|--------------|---------|
+| `GET /feed` items | `PostDetail` | `{ post, author, like_count, is_liked }` 중첩 구조 |
+| `GET /users/{username}/posts` items | `Post` | 직접 Post 객체, PostDetail 아님 |
+| `GET /users/{username}` | `UserProfile` | `{ user, stats }` |
+| `POST /auth/register`, `POST /auth/login` | `AuthResponse` | `{ user, access_token }` |
 
 ---
 
