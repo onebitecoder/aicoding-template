@@ -172,6 +172,31 @@ git tag v0.1.0       # 3. 버전 태그
 7. 사용자 작업에 성공/실패 메시지 항상 노출
 8. **디자인 레퍼런스**: `design/reference.png` 이미지 확인 후 적용
 
+### 파일 업로드 UI 패턴 (MANDATORY)
+- **`<label htmlFor="file-input">` 방식만 사용** — 브라우저 네이티브 동작으로 모든 환경에서 안정적
+- `button.onClick(() => ref.click())` 방식 **금지** — 일부 브라우저에서 파일 선택창이 열리지 않음
+```tsx
+// 올바른 패턴
+<label htmlFor="file-input" className="cursor-pointer ...">
+  파일 선택
+</label>
+<input id="file-input" type="file" className="hidden" onChange={...} />
+
+// 금지 패턴
+<button onClick={() => fileRef.current?.click()}>파일 선택</button>
+<input ref={fileRef} type="file" className="hidden" />
+```
+
+### API 응답 타입 동기화 (IMPORTANT)
+- **같은 도메인이라도 엔드포인트별 응답 구조가 다르면 별도 타입으로 정의**
+- `types/index.ts`는 SPEC.md 섹션 12.3의 타입 일관성 표와 1:1 대응 유지
+- 구현 전 반드시 SPEC.md의 Response 스키마 확인 후 타입 정의
+  ```
+  예시 — 혼용 금지:
+  GET /feed          → items: PostDetail[]  (post 중첩: item.post.id)
+  GET /users/*/posts → items: Post[]        (직접: item.id)
+  ```
+
 ## 의존성 관리 및 환경 구축 (IMPORTANT)
 
 ### 스크립트 실행 방법
@@ -239,6 +264,19 @@ bash scripts/test.sh lint          # 린트만
 - 테스트 없이 기능만 추가하는 것은 미완성 작업
 - 파일 명명: `test_*.py` (Backend), `*.test.ts(x)` (Frontend)
 - AAA 패턴: Arrange → Act → Assert
+
+### SPEC 기반 테스트 자동 생성 (프로젝트 구현 시)
+
+> **프로젝트 구현 완료 후 반드시 아래 순서를 따른다:**
+
+1. **SPEC.md 섹션 12 (Testing Requirements)를 읽고** 테스트 케이스 목록 파악
+2. **Backend**: `12.1 API Contract Tests` 표의 모든 행을 pytest로 작성
+   - 각 엔드포인트 × 테스트 케이스 = 1개의 테스트 함수
+   - 상태코드 + 응답 구조 모두 검증
+3. **Frontend**: `12.2 Component Render Tests` 표의 모든 행을 Vitest로 작성
+   - 컴포넌트 렌더링 + 핵심 UI 요소 존재 여부 검증
+4. **타입 일관성**: `12.3 타입 일관성 검증` 표 기준으로 응답 구조 오용 없는지 확인
+5. 테스트 실행 → **FAIL이면 구현 버그로 간주하고 수정** → 전체 PASS까지 반복
 
 ## Database 규칙 (IMPORTANT)
 
