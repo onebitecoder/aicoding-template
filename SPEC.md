@@ -323,8 +323,8 @@ VITE_APP_NAME=Instagram MVP
 | `POST /api/v1/auth/login` | 잘못된 비밀번호 | 401 | `{ detail }` |
 | `POST /api/v1/posts` | 정상 업로드 (jpg) | 201 | `{ post }` |
 | `POST /api/v1/posts` | 잘못된 파일 타입 (gif) | 400 | `{ detail }` |
-| `GET /api/v1/posts/feed` | 정상 조회 | 200 | `{ items: PostDetail[], total, has_next }` |
-| `GET /api/v1/posts/feed` | 페이지네이션 (offset) | 200 | `has_next` 값 정확성 |
+| `GET /api/v1/feed` | 정상 조회 | 200 | `{ items: PostDetail[], total, has_next }` |
+| `GET /api/v1/feed` | 페이지네이션 (offset) | 200 | `has_next` 값 정확성 |
 | `GET /api/v1/users/{username}` | 존재하는 유저 | 200 | `{ user, stats: { posts } }` |
 | `GET /api/v1/users/{username}/posts` | 정상 조회 | 200 | `{ items: Post[], total, has_next }` ※ PostDetail 아님 |
 | `POST /api/v1/posts/{id}/like` | 정상 좋아요 | 200 | - |
