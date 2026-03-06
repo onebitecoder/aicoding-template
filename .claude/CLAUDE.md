@@ -290,9 +290,10 @@ bash scripts/test.sh lint          # 린트만
 3. 인터뷰 답변을 반영해 `TEST.md`를 확정하고, 확정본을 **검증 단일 기준(Single Source of Truth for validation)** 으로 사용한다.
 4. 구현 완료 후 반드시 `TEST.md`의 모든 시나리오를 실제 테스트 코드/명령으로 검증한다.
 5. 하나라도 FAIL이면 구현 미완료로 간주하고 수정 후 재검증한다.
-6. 최종 보고 시 `TEST.md` 기준 결과 테이블(PASS/FAIL, 상세)을 포함한다.
-7. `SPEC.md`의 기능/API/타입이 변경되면 `TEST.md`를 즉시 동기화하고 필요한 인터뷰를 다시 수행한다.
-8. 권장 실행 순서:
+6. `TEST.md` 전 시나리오가 PASS 될 때까지 **구현 → 테스트 실행 → 실패 원인 수정 → 재테스트** 사이클을 반복한다.
+7. 최종 보고 시 `TEST.md` 기준 결과 테이블(PASS/FAIL, 상세)을 포함한다.
+8. `SPEC.md`의 기능/API/타입이 변경되면 `TEST.md`를 즉시 동기화하고 필요한 인터뷰를 다시 수행한다.
+9. 권장 실행 순서:
    - `bash scripts/test.sh lint`
    - `bash scripts/test.sh`
    - 필요 시 `bash scripts/test.sh --coverage`
@@ -316,8 +317,9 @@ bash scripts/test.sh lint          # 린트만
    - REFACTOR: 중복 제거/구조 개선 후 전체 테스트 재통과
 5. 구현 중 판단이 갈리는 애매한 사항(요구사항 해석, 예외 처리, UX 흐름, 데이터 규칙)은 임의 결정하지 말고 사용자에게 인터뷰 후 진행한다.
 6. 테스트 없이 기능 코드만 먼저 작성하는 방식은 금지한다.
-7. 완료 조건은 `TEST.md` 전 항목 PASS + 린트 PASS + 타입 일관성 PASS다.
-8. 최종 보고에는 아래를 포함한다:
+7. 완료 전까지 `TEST.md` 시나리오를 기준으로 RED/GREEN 사이클을 반복하며 미통과 항목을 0으로 만든다.
+8. 완료 조건은 `TEST.md` 전 항목 PASS + 린트 PASS + 타입 일관성 PASS다.
+9. 최종 보고에는 아래를 포함한다:
    - TEST.md 시나리오별 PASS/FAIL
    - 새로 추가된 unit/integration 테스트 목록
    - 미통과 항목(있는 경우)과 원인/후속 조치
