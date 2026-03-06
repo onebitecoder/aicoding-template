@@ -293,6 +293,30 @@ bash scripts/test.sh lint          # 린트만
    - `bash scripts/test.sh`
    - 필요 시 `bash scripts/test.sh --coverage`
 
+### TDD 기반 구현 규칙 (MANDATORY)
+
+> **목표**: SPEC.md 요구사항을 TEST.md 시나리오로 변환하고, TEST.md PASS를 목표로 TDD(RED → GREEN → REFACTOR) 방식으로 구현한다.
+
+1. 구현 시작 전 `SPEC.md`를 읽고 `TEST.md`를 최신화한다.
+2. `TEST.md` 시나리오는 **항상 SPEC.md에서 추출**한다. 특정 도메인(예: 인스타그램 기능) 시나리오를 고정 문구로 강제하지 않는다.
+   - 추출 기준: `Core Features & User Stories`, `API Design`, `Business Rules`, `Frontend Routes`
+   - 작성 원칙: "사용자 행동 → 기대 결과" 형태로 기능별 시나리오를 정의
+   - SPEC.md에 없는 기능은 TEST.md에 임의로 추가하지 않는다.
+3. 각 사용자 시나리오는 테스트 코드로 분해한다:
+   - Unit Test (핵심 로직/유틸)
+   - Integration Test (API/DB/상태 연동)
+   - 필요 시 E2E 또는 사용자 흐름 테스트
+4. 구현 순서는 반드시 TDD를 따른다:
+   - RED: 실패하는 테스트를 먼저 작성
+   - GREEN: 테스트를 통과시키는 최소 코드 구현
+   - REFACTOR: 중복 제거/구조 개선 후 전체 테스트 재통과
+5. 테스트 없이 기능 코드만 먼저 작성하는 방식은 금지한다.
+6. 완료 조건은 `TEST.md` 전 항목 PASS + 린트 PASS + 타입 일관성 PASS다.
+7. 최종 보고에는 아래를 포함한다:
+   - TEST.md 시나리오별 PASS/FAIL
+   - 새로 추가된 unit/integration 테스트 목록
+   - 미통과 항목(있는 경우)과 원인/후속 조치
+
 ## Database 규칙 (IMPORTANT)
 
 ### ORM 필수

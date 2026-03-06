@@ -278,6 +278,45 @@ bash scripts/test.sh lint          # 린트만
 4. **타입 일관성**: `12.3 타입 일관성 검증` 표 기준으로 응답 구조 오용 없는지 확인
 5. 테스트 실행 → **FAIL이면 구현 버그로 간주하고 수정** → 전체 PASS까지 반복
 
+### TEST.md 기반 검증 워크플로우 (MANDATORY)
+
+> **목적**: SPEC.md 요구사항을 테스트 가능한 시나리오로 고정하고, 구현 완료 조건을 명확히 한다.
+
+1. 프로젝트 구현 시작 시 `SPEC.md`를 기준으로 루트 `TEST.md`를 생성/갱신한다.
+2. `TEST.md`는 **검증 단일 기준(Single Source of Truth for validation)** 으로 사용한다.
+3. 구현 완료 후 반드시 `TEST.md`의 모든 시나리오를 실제 테스트 코드/명령으로 검증한다.
+4. 하나라도 FAIL이면 구현 미완료로 간주하고 수정 후 재검증한다.
+5. 최종 보고 시 `TEST.md` 기준 결과 테이블(PASS/FAIL, 상세)을 포함한다.
+6. `SPEC.md`의 기능/API/타입이 변경되면 `TEST.md`를 즉시 동기화한다.
+7. 권장 실행 순서:
+   - `bash scripts/test.sh lint`
+   - `bash scripts/test.sh`
+   - 필요 시 `bash scripts/test.sh --coverage`
+
+### TDD 기반 구현 규칙 (MANDATORY)
+
+> **목표**: SPEC.md 요구사항을 TEST.md 시나리오로 변환하고, TEST.md PASS를 목표로 TDD(RED → GREEN → REFACTOR) 방식으로 구현한다.
+
+1. 구현 시작 전 `SPEC.md`를 읽고 `TEST.md`를 최신화한다.
+2. `TEST.md` 시나리오는 **항상 SPEC.md에서 추출**한다. 특정 도메인(예: 인스타그램 기능) 시나리오를 고정 문구로 강제하지 않는다.
+   - 추출 기준: `Core Features & User Stories`, `API Design`, `Business Rules`, `Frontend Routes`
+   - 작성 원칙: "사용자 행동 → 기대 결과" 형태로 기능별 시나리오를 정의
+   - SPEC.md에 없는 기능은 TEST.md에 임의로 추가하지 않는다.
+3. 각 사용자 시나리오는 테스트 코드로 분해한다:
+   - Unit Test (핵심 로직/유틸)
+   - Integration Test (API/DB/상태 연동)
+   - 필요 시 E2E 또는 사용자 흐름 테스트
+4. 구현 순서는 반드시 TDD를 따른다:
+   - RED: 실패하는 테스트를 먼저 작성
+   - GREEN: 테스트를 통과시키는 최소 코드 구현
+   - REFACTOR: 중복 제거/구조 개선 후 전체 테스트 재통과
+5. 테스트 없이 기능 코드만 먼저 작성하는 방식은 금지한다.
+6. 완료 조건은 `TEST.md` 전 항목 PASS + 린트 PASS + 타입 일관성 PASS다.
+7. 최종 보고에는 아래를 포함한다:
+   - TEST.md 시나리오별 PASS/FAIL
+   - 새로 추가된 unit/integration 테스트 목록
+   - 미통과 항목(있는 경우)과 원인/후속 조치
+
 ## Database 규칙 (IMPORTANT)
 
 ### ORM 필수
